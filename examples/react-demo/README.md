@@ -21,7 +21,7 @@
 
 1. 克隆项目：
 ```bash
-git clone https://github.com/yourusername/xfyun-sdk.git
+git clone https://github.com/agions/xfyun-sdk.git
 cd xfyun-sdk/examples/react-demo
 ```
 
