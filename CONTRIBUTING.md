@@ -71,7 +71,7 @@ npm start
 ## 资源
 
 - [项目文档](README.md)
-- [Issue 跟踪器](https://github.com/your-username/xfyun-sdk/issues)
+- [Issue 跟踪器](https://github.com/agions/xfyun-sdk/issues)
 - [科大讯飞开放平台](https://www.xfyun.cn/)
 
 再次感谢您的贡献！ 

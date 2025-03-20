@@ -1,6 +1,6 @@
 {
   "name": "xfyun-sdk",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "科大讯飞语音识别 SDK，支持浏览器中实时语音听写功能",
   "main": "dist/index.js",
   "module": "dist/index.esm.js",

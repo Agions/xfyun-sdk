@@ -16,7 +16,6 @@ const DEFAULT_OPTIONS: Partial<XfyunASROptions> = {
   vadEos: 3000,
   maxAudioSize: 1024 * 1024,
   autoStart: false,
-  punctuation: true,
   audioFormat: 'audio/L16;rate=16000'
 };
 
@@ -327,7 +326,15 @@ export class XfyunASR {
         domain: this.options.domain,
         accent: this.options.accent,
         vad_eos: this.options.vadEos,
-        punctuation: this.options.punctuation ? '1' : '0',
+        dwa: 'wpgs',
+        pd: 'speech',
+        ptt: 0,
+        rlang: 'zh-cn',
+        vinfo: 1,
+        nunum: 1,
+        speex_size: 70,
+        nbest: 1,
+        wbest: 5
       },
       data: {
         status: 0, // 0: 开始
@@ -361,6 +368,24 @@ export class XfyunASR {
       
       // 构建数据帧
       const frame: XfyunWebsocketRequest = {
+        common: {
+          app_id: this.options.appId
+        },
+        business: {
+          language: this.options.language,
+          domain: this.options.domain,
+          accent: this.options.accent,
+          vad_eos: this.options.vadEos,
+          dwa: 'wpgs',
+          pd: 'speech',
+          ptt: 0,
+          rlang: 'zh-cn',
+          vinfo: 1,
+          nunum: 1,
+          speex_size: 70,
+          nbest: 1,
+          wbest: 5
+        },
         data: {
           status: 1, // 1: 连续帧
           format: this.options.audioFormat || 'audio/L16;rate=16000',
@@ -384,6 +409,24 @@ export class XfyunASR {
 
     // 构建结束帧
     const frame: XfyunWebsocketRequest = {
+      common: {
+        app_id: this.options.appId
+      },
+      business: {
+        language: this.options.language,
+        domain: this.options.domain,
+        accent: this.options.accent,
+        vad_eos: this.options.vadEos,
+        dwa: 'wpgs',
+        pd: 'speech',
+        ptt: 0,
+        rlang: 'zh-cn',
+        vinfo: 1,
+        nunum: 1,
+        speex_size: 70,
+        nbest: 1,
+        wbest: 5
+      },
       data: {
         status: 2, // 2: 结束帧
         format: this.options.audioFormat || 'audio/L16;rate=16000',

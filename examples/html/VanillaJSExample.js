@@ -4,6 +4,7 @@ const APP_ID = '您的 APPID';
 const API_KEY = '您的 API Key';
 const API_SECRET = '您的 API Secret';
 
+
 document.addEventListener('DOMContentLoaded', () => {
   // DOM 元素
   const startButton = document.getElementById('startButton');

@@ -10,7 +10,7 @@ export interface XfyunASROptions {
   maxAudioSize?: number; // 最大音频大小，默认 1MB
   autoStart?: boolean; // 自动开始，默认 false
   hotWords?: string[]; // 热词
-  punctuation?: boolean; // 是否包含标点符号，默认 true
+  punctuation?: boolean|string; // 是否包含标点符号，默认 true
   audioFormat?: string; // 音频格式，默认 'audio/L16;rate=16000'
 }
 
