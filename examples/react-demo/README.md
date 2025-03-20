@@ -9,6 +9,10 @@
 - 错误处理和状态管理
 - 支持部署到 GitHub Pages
 
+## 示例截图
+<img width="927" alt="image" src="https://github.com/user-attachments/assets/0d2f43c4-12d6-4fc1-a1da-a1581222d493" />
+
+
 ## 开始使用
 
 ### 前置条件
