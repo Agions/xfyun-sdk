@@ -15,186 +15,204 @@
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
       line-height: 1.6;
       color: #333;
+      background-color: #f9f9f9;
+      padding: 20px;
       max-width: 800px;
       margin: 0 auto;
-      padding: 20px;
     }
     
     h1 {
+      font-size: 1.8rem;
+      margin-bottom: 1rem;
+      color: #2c3e50;
       text-align: center;
-      margin-bottom: 30px;
-      color: #2196f3;
+    }
+    
+    .description {
+      background-color: #f5f5f5;
+      border-left: 4px solid #3498db;
+      padding: 10px 15px;
+      margin-bottom: 20px;
+      border-radius: 0 4px 4px 0;
+    }
+    
+    .setup-notice {
+      background-color: #fff8e1;
+      border-radius: 4px;
+      padding: 15px;
+      margin-bottom: 20px;
+      border: 1px solid #ffecb3;
+    }
+    
+    .setup-notice h3 {
+      color: #ff9800;
+      margin-bottom: 10px;
     }
     
     .container {
-      background-color: #f9f9f9;
+      background-color: white;
       border-radius: 8px;
       padding: 20px;
       box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     }
     
-    .controls {
+    .control-panel {
       display: flex;
-      justify-content: center;
-      gap: 20px;
+      gap: 10px;
       margin-bottom: 20px;
     }
     
     button {
-      padding: 12px 24px;
-      font-size: 16px;
+      background-color: #3498db;
+      color: white;
       border: none;
-      border-radius: 50px;
+      border-radius: 4px;
+      padding: 10px 16px;
+      font-size: 1rem;
       cursor: pointer;
-      outline: none;
-      transition: background-color 0.3s, transform 0.2s;
+      transition: background-color 0.2s;
+      flex: 1;
     }
     
     button:hover {
-      transform: translateY(-2px);
-    }
-    
-    button:active {
-      transform: translateY(0);
-    }
-    
-    #startButton {
-      background-color: #2196f3;
-      color: white;
-    }
-    
-    #startButton:hover {
-      background-color: #1976d2;
-    }
-    
-    #stopButton {
-      background-color: #f44336;
-      color: white;
-    }
-    
-    #stopButton:hover {
-      background-color: #d32f2f;
+      background-color: #2980b9;
     }
     
     button:disabled {
-      background-color: #bdbdbd;
+      background-color: #bdc3c7;
       cursor: not-allowed;
-      transform: none;
     }
     
-    .status-container {
-      margin-bottom: 15px;
-      text-align: center;
+    #stopButton {
+      background-color: #e74c3c;
     }
     
-    #status {
-      display: inline-block;
-      padding: 5px 10px;
-      border-radius: 4px;
-      background-color: #e0e0e0;
-      font-size: 14px;
+    #stopButton:hover {
+      background-color: #c0392b;
     }
     
     .volume-container {
-      margin-bottom: 20px;
+      margin-bottom: 15px;
     }
     
     .volume-bar-container {
       width: 100%;
-      height: 10px;
-      background-color: #eeeeee;
-      border-radius: 5px;
+      height: 8px;
+      background-color: #ecf0f1;
+      border-radius: 4px;
       overflow: hidden;
     }
     
-    #volumeBar {
+    .volume-bar {
       height: 100%;
+      background-color: #2ecc71;
       width: 0;
-      background-color: #4caf50;
-      transition: width 0.1s;
+      transition: width 0.1s ease;
     }
     
-    .error-container {
-      margin-bottom: 20px;
-      padding: 10px 15px;
-      background-color: #ffebee;
-      border-left: 5px solid #f44336;
-      border-radius: 4px;
-      display: none;
+    .status {
+      margin-bottom: 15px;
+      color: #7f8c8d;
+      font-size: 0.9rem;
     }
     
     .result-container {
       margin-top: 20px;
     }
     
-    .result-container h2 {
-      margin-bottom: 10px;
-      font-size: 18px;
-      color: #555;
-    }
-    
-    #result {
+    .result {
       min-height: 150px;
       max-height: 300px;
       overflow-y: auto;
-      padding: 15px;
       border: 1px solid #ddd;
       border-radius: 4px;
-      background-color: #fff;
-      font-size: 16px;
+      padding: 10px;
+      font-size: 1rem;
+      line-height: 1.5;
+      background-color: #f9f9f9;
+      white-space: pre-wrap;
     }
     
-    .footer {
-      margin-top: 30px;
-      text-align: center;
-      font-size: 14px;
-      color: #757575;
+    .error {
+      background-color: #fdecea;
+      color: #e53935;
+      padding: 10px;
+      border-radius: 4px;
+      margin-top: 15px;
+      display: none;
+      font-size: 0.9rem;
     }
-    
-    .footer a {
-      color: #2196f3;
-      text-decoration: none;
+
+    .tips {
+      margin-top: 20px;
+      font-size: 0.9rem;
+      color: #666;
     }
-    
-    .footer a:hover {
-      text-decoration: underline;
+
+    .tips h3 {
+      margin-bottom: 8px;
+      color: #2c3e50;
+    }
+
+    .tips ul {
+      padding-left: 20px;
+    }
+
+    .tips li {
+      margin-bottom: 5px;
     }
   </style>
 </head>
 <body>
   <h1>科大讯飞语音识别 SDK 示例</h1>
   
+  <div class="description">
+    这是一个简单的科大讯飞语音识别 SDK 示例，展示了如何使用 JavaScript 实现实时语音听写功能。
+  </div>
+  
+  <div class="setup-notice">
+    <h3>⚠️ 使用前请确认</h3>
+    <p>请确保您已经在 VanillaJSExample.js 文件中设置了您的应用 ID、API Key 和 API Secret。</p>
+    <p>这些信息可以在<a href="https://console.xfyun.cn" target="_blank">科大讯飞开放平台</a>获取。</p>
+  </div>
+  
   <div class="container">
-    <div class="controls">
+    <div class="control-panel">
       <button id="startButton">开始录音</button>
-      <button id="stopButton">停止录音</button>
+      <button id="stopButton" disabled>停止录音</button>
     </div>
     
-    <div class="status-container">
-      <div id="status">状态: 空闲</div>
-    </div>
+    <div class="status" id="status">状态: 空闲</div>
     
     <div class="volume-container">
       <div class="volume-bar-container">
-        <div id="volumeBar"></div>
+        <div class="volume-bar" id="volumeBar"></div>
       </div>
     </div>
     
-    <div id="error" class="error-container"></div>
-    
     <div class="result-container">
-      <h2>识别结果:</h2>
-      <div id="result"></div>
+      <h3>识别结果:</h3>
+      <div class="result" id="result"></div>
     </div>
+    
+    <div class="error" id="error"></div>
+  </div>
+
+  <div class="tips">
+    <h3>使用提示:</h3>
+    <ul>
+      <li>首次使用需要允许浏览器访问麦克风。</li>
+      <li>请确保网络连接稳定。</li>
+      <li>请在安静的环境中使用，以获得更好的识别效果。</li>
+      <li>如果遇到"语音识别结果为空"的问题，请检查控制台日志并确认接口参数正确。</li>
+      <li>本示例使用了最新版本的 SDK，如有问题请参考<a href="https://github.com/agions/xfyun-sdk" target="_blank">GitHub 仓库</a>。</li>
+    </ul>
   </div>
   
-  <div class="footer">
-    <p>Powered by <a href="https://www.xfyun.cn/" target="_blank">科大讯飞开放平台</a> | 使用 XfyunSDK 实现</p>
-  </div>
+  <!-- 引入 SDK -->
+  <script src="../../dist/index.umd.js"></script>
   
-  <!-- 引入SDK -->
-  <script src="../dist/index.umd.js"></script>
   <!-- 引入示例代码 -->
-  <script src="VanillaJSExample.js"></script>
+  <script src="./VanillaJSExample.js"></script>
 </body>
 </html> 

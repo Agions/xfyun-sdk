@@ -21,8 +21,8 @@ export function generateAuthUrl(apiKey: string, apiSecret: string, host: string 
   const authorizationOrigin = `api_key="${apiKey}", algorithm="${algorithm}", headers="host date request-line", signature="${signature}"`;
   const authorization = btoa(authorizationOrigin);
 
-  // 拼接请求URL
-  return `${url}?authorization=${encodeURI(authorization)}&date=${encodeURI(date)}&host=${encodeURI(host)}`;
+  // 拼接请求URL，确保使用encodeURIComponent进行更安全的编码
+  return `${url}?authorization=${encodeURIComponent(authorization)}&date=${encodeURIComponent(date)}&host=${encodeURIComponent(host)}`;
 }
 
 /**
@@ -58,11 +58,19 @@ export function arrayBufferToBase64(buffer: ArrayBuffer): string {
  * @returns 解析后的文本
  */
 export function parseXfyunResult(result: any): string {
-  if (!result || !result.ws) {
+  if (!result || !Array.isArray(result.ws)) {
     return '';
   }
   
-  return result.ws.map((ws: any) => {
-    return ws.cw.map((cw: any) => cw.w).join('');
-  }).join('');
+  try {
+    return result.ws.map((ws: any) => {
+      if (!Array.isArray(ws.cw)) {
+        return '';
+      }
+      return ws.cw.map((cw: any) => cw.w).join('');
+    }).join('');
+  } catch (error) {
+    console.error('解析讯飞结果失败:', error, '原始数据:', result);
+    return '';
+  }
 } 

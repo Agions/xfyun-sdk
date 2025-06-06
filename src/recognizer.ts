@@ -188,13 +188,18 @@ export class XfyunASR {
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
-          autoGainControl: true
+          autoGainControl: true,
+          sampleRate: 16000 // 确保使用16000Hz采样率
         },
         video: false
       });
 
+      console.log('成功获取麦克风权限');
+
       // 创建音频上下文
-      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
+        sampleRate: 16000 // 确保使用16000Hz采样率
+      });
       
       // 创建分析器节点，用于获取音频音量
       this.analyser = this.audioContext.createAnalyser();
@@ -204,9 +209,31 @@ export class XfyunASR {
       const source = this.audioContext.createMediaStreamSource(this.microphoneStream);
       source.connect(this.analyser);
       
+      // 检查支持的MIME类型
+      const mimeTypes = [
+        'audio/webm',
+        'audio/webm;codecs=opus',
+        'audio/ogg;codecs=opus'
+      ];
+      
+      let mimeType = '';
+      for (const type of mimeTypes) {
+        if (MediaRecorder.isTypeSupported(type)) {
+          mimeType = type;
+          break;
+        }
+      }
+      
+      if (!mimeType) {
+        throw new Error('浏览器不支持任何可用的音频编码格式');
+      }
+      
+      console.log('使用音频格式:', mimeType);
+      
       // 创建音频录制器
       this.recorder = new MediaRecorder(this.microphoneStream, {
-        mimeType: 'audio/webm'
+        mimeType,
+        audioBitsPerSecond: 16000
       });
       
       // 处理录音数据
@@ -218,22 +245,41 @@ export class XfyunASR {
           const reader = new FileReader();
           reader.onload = () => {
             if (this.state === 'recording' && reader.result instanceof ArrayBuffer) {
-              const base64Audio = arrayBufferToBase64(reader.result);
-              this.audioDataQueue.push(base64Audio);
-              this.sendAudioData();
+              try {
+                const base64Audio = arrayBufferToBase64(reader.result);
+                this.audioDataQueue.push(base64Audio);
+                this.sendAudioData();
+              } catch (error) {
+                console.error('处理音频数据失败:', error);
+              }
             }
+          };
+          reader.onerror = (error) => {
+            console.error('读取音频数据失败:', error);
           };
           reader.readAsArrayBuffer(event.data);
         }
       };
       
+      // 录音出错处理
+      this.recorder.onerror = (error) => {
+        console.error('录音出错:', error);
+        this.handleError({
+          code: 10009,
+          message: '录音出错',
+          data: error
+        });
+      };
+      
       // 开始录音
-      this.recorder.start(500);
+      this.recorder.start(500); // 每500ms提供一次数据
       
       // 开始音量检测
       this.startVolumeDetection();
       
+      console.log('麦克风和录音器初始化完成');
     } catch (error) {
+      console.error('获取麦克风权限失败:', error);
       throw new Error(`获取麦克风权限失败: ${error}`);
     }
   }
@@ -246,10 +292,12 @@ export class XfyunASR {
       // 生成WebSocket URL
       const url = generateAuthUrl(this.options.apiKey, this.options.apiSecret);
       
+      console.log('正在连接WebSocket:', url);
       this.websocket = new WebSocket(url);
       
       // 连接建立
       this.websocket.onopen = () => {
+        console.log('WebSocket连接成功');
         this.setState('connected');
         this.sendStartFrame();
       };
@@ -257,6 +305,7 @@ export class XfyunASR {
       // 接收消息
       this.websocket.onmessage = (event) => {
         try {
+          console.log('收到WebSocket消息:', event.data);
           const message: XfyunWebsocketResponse = JSON.parse(event.data);
           
           // 处理错误
@@ -273,13 +322,18 @@ export class XfyunASR {
             const text = parseXfyunResult(message.data.result);
             const isEnd = message.data.result.ls;
             
-            this.recognitionResult += text;
+            console.log('解析识别结果:', text, '是否最终结果:', isEnd);
             
-            if (this.handlers.onRecognitionResult) {
-              this.handlers.onRecognitionResult(text, isEnd);
+            if (text) {
+              this.recognitionResult += text;
+              
+              if (this.handlers.onRecognitionResult) {
+                this.handlers.onRecognitionResult(text, isEnd);
+              }
             }
           }
         } catch (error) {
+          console.error('解析WebSocket消息失败:', error, '原始消息:', event.data);
           this.handleError({
             code: 10005,
             message: '解析消息失败',
@@ -290,6 +344,7 @@ export class XfyunASR {
       
       // 连接错误
       this.websocket.onerror = (error) => {
+        console.error('WebSocket连接错误:', error);
         this.handleError({
           code: 10006,
           message: 'WebSocket连接错误',
@@ -298,12 +353,14 @@ export class XfyunASR {
       };
       
       // 连接关闭
-      this.websocket.onclose = () => {
+      this.websocket.onclose = (event) => {
+        console.log('WebSocket连接关闭:', event.code, event.reason);
         if (this.state !== 'stopped' && this.state !== 'error') {
           this.setState('idle');
         }
       };
     } catch (error) {
+      console.error('初始化WebSocket失败:', error);
       throw new Error(`初始化WebSocket失败: ${error}`);
     }
   }
@@ -313,43 +370,64 @@ export class XfyunASR {
    */
   private sendStartFrame(): void {
     if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
+      console.error('WebSocket未连接，无法发送开始帧');
       return;
     }
 
-    // 构建开始参数
-    const frame: XfyunWebsocketRequest = {
-      common: {
-        app_id: this.options.appId,
-      },
-      business: {
-        language: this.options.language,
-        domain: this.options.domain,
-        accent: this.options.accent,
-        vad_eos: this.options.vadEos,
-        dwa: 'wpgs',
-        pd: 'speech',
-        ptt: 0,
-        rlang: 'zh-cn',
-        vinfo: 1,
-        nunum: 1,
-        speex_size: 70,
-        nbest: 1,
-        wbest: 5
-      },
-      data: {
-        status: 0, // 0: 开始
-        format: this.options.audioFormat || 'audio/L16;rate=16000',
-        encoding: 'raw',
+    try {
+      // 构建开始参数
+      const frame: XfyunWebsocketRequest = {
+        common: {
+          app_id: this.options.appId,
+        },
+        business: {
+          language: this.options.language,
+          domain: this.options.domain,
+          accent: this.options.accent,
+          vad_eos: this.options.vadEos,
+          dwa: 'wpgs', // 开启动态修正功能
+          pd: 'speech',
+          ptt: 0,
+          rlang: 'zh-cn',
+          vinfo: 1,
+          nunum: 1,
+          speex_size: 70,
+          nbest: 1,
+          wbest: 5
+        },
+        data: {
+          status: 0, // 0: 开始
+          format: this.options.audioFormat || 'audio/L16;rate=16000',
+          encoding: 'raw',
+          audio: '' // 开始帧不需要音频数据
+        }
+      };
+
+      // 设置标点符号选项
+      if (typeof this.options.punctuation !== 'undefined') {
+        if (typeof this.options.punctuation === 'boolean') {
+          frame.business!.punctuation = this.options.punctuation ? 'on' : 'off';
+        } else {
+          frame.business!.punctuation = this.options.punctuation;
+        }
       }
-    };
 
-    // 如果有热词，添加到请求中
-    if (this.options.hotWords && this.options.hotWords.length > 0) {
-      frame.business!.hotwords = this.options.hotWords.join(',');
+      // 如果有热词，添加到请求中
+      if (this.options.hotWords && this.options.hotWords.length > 0) {
+        frame.business!.hotwords = this.options.hotWords.join(',');
+      }
+
+      console.log('发送开始帧:', JSON.stringify(frame));
+      this.websocket.send(JSON.stringify(frame));
+      this.setState('recording');
+    } catch (error) {
+      console.error('发送开始帧失败:', error);
+      this.handleError({
+        code: 10008,
+        message: '发送开始帧失败',
+        data: error
+      });
     }
-
-    this.websocket.send(JSON.stringify(frame));
-    this.setState('recording');
   }
 
   /**
@@ -366,36 +444,53 @@ export class XfyunASR {
       
       if (!audioData) continue;
       
-      // 构建数据帧
-      const frame: XfyunWebsocketRequest = {
-        common: {
-          app_id: this.options.appId
-        },
-        business: {
-          language: this.options.language,
-          domain: this.options.domain,
-          accent: this.options.accent,
-          vad_eos: this.options.vadEos,
-          dwa: 'wpgs',
-          pd: 'speech',
-          ptt: 0,
-          rlang: 'zh-cn',
-          vinfo: 1,
-          nunum: 1,
-          speex_size: 70,
-          nbest: 1,
-          wbest: 5
-        },
-        data: {
-          status: 1, // 1: 连续帧
-          format: this.options.audioFormat || 'audio/L16;rate=16000',
-          encoding: 'raw',
-          audio: audioData
+      try {
+        // 构建数据帧
+        const frame: XfyunWebsocketRequest = {
+          common: {
+            app_id: this.options.appId
+          },
+          business: {
+            language: this.options.language,
+            domain: this.options.domain,
+            accent: this.options.accent,
+            vad_eos: this.options.vadEos,
+            dwa: 'wpgs', // 开启动态修正功能
+            pd: 'speech',
+            ptt: 0,
+            rlang: 'zh-cn',
+            vinfo: 1,
+            nunum: 1,
+            speex_size: 70,
+            nbest: 1,
+            wbest: 5
+          },
+          data: {
+            status: 1, // 1: 连续帧
+            format: this.options.audioFormat || 'audio/L16;rate=16000',
+            encoding: 'raw',
+            audio: audioData
+          }
+        };
+
+        // 如果有热词，添加到请求中
+        if (this.options.hotWords && this.options.hotWords.length > 0) {
+          frame.business!.hotwords = this.options.hotWords.join(',');
         }
-      };
-      
-      // 发送数据
-      this.websocket.send(JSON.stringify(frame));
+        
+        // 发送数据
+        const jsonStr = JSON.stringify(frame);
+        this.websocket.send(jsonStr);
+        
+        console.log('发送音频数据帧, 大小:', audioData.length);
+      } catch (error) {
+        console.error('发送音频数据失败:', error);
+        this.handleError({
+          code: 10007,
+          message: '发送音频数据失败',
+          data: error
+        });
+      }
     }
   }
 
