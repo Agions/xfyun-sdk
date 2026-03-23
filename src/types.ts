@@ -12,6 +12,14 @@ export interface XfyunASROptions {
   hotWords?: string[]; // 热词
   punctuation?: boolean|string; // 是否包含标点符号，默认 true
   audioFormat?: string; // 音频格式，默认 'audio/L16;rate=16000'
+  /** 重连次数，默认 3 */
+  reconnectAttempts?: number;
+  /** 重连间隔(ms)，默认 3000 */
+  reconnectInterval?: number;
+  /** 是否启用自动重连，默认 false */
+  enableReconnect?: boolean;
+  /** 日志级别：debug | info | warn | error，默认 info */
+  logLevel?: 'debug' | 'info' | 'warn' | 'error';
 }
 
 // 状态

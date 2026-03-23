@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { XfyunASR } from '../recognizer';
 import { XfyunASROptions, RecognizerState } from '../types';
 
@@ -123,7 +123,15 @@ const SpeechRecognizer: React.FC<SpeechRecognizerProps> = ({
   const [state, setState] = useState<RecognizerState>('idle');
   const [volume, setVolume] = useState<number>(0);
   
+  // 使用 ref 追踪状态，避免闭包问题
   const recognizerRef = useRef<XfyunASR | null>(null);
+  const stateRef = useRef<RecognizerState>('idle');
+  const isDestroyedRef = useRef(false);
+  
+  // 保持 stateRef 同步
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
   
   // 初始化语音识别实例
   useEffect(() => {
@@ -132,6 +140,9 @@ const SpeechRecognizer: React.FC<SpeechRecognizerProps> = ({
       console.error('缺少必要参数: appId, apiKey, apiSecret');
       return;
     }
+    
+    // 标记为未销毁
+    isDestroyedRef.current = false;
     
     const options: XfyunASROptions = {
       appId,
@@ -148,57 +159,78 @@ const SpeechRecognizer: React.FC<SpeechRecognizerProps> = ({
     // 创建讯飞语音识别实例
     recognizerRef.current = new XfyunASR(options, {
       onStart: () => {
-        onStart && onStart();
+        if (isDestroyedRef.current) return;
+        setState('recording');
+        onStart?.();
       },
       onStop: () => {
-        onStop && onStop();
+        if (isDestroyedRef.current) return;
+        setState('stopped');
+        onStop?.();
       },
       onRecognitionResult: (text, isEnd) => {
+        if (isDestroyedRef.current) return;
         setRecognitionText(prev => prev + text);
-        onResult && onResult(text, isEnd);
+        onResult?.(text, isEnd);
       },
       onProcess: (volumeValue) => {
+        if (isDestroyedRef.current) return;
         setVolume(volumeValue);
       },
       onError: (error) => {
-        onError && onError(error);
+        if (isDestroyedRef.current) return;
+        setState('error');
+        onError?.(error);
       },
       onStateChange: (newState) => {
+        if (isDestroyedRef.current) return;
         setState(newState);
       }
     });
     
+    // 如果设置了自动开始，则启动
+    if (autoStart) {
+      recognizerRef.current.start();
+    }
+    
     // 组件卸载时清理资源
     return () => {
-      if (recognizerRef.current && state === 'recording') {
-        recognizerRef.current.stop();
+      isDestroyedRef.current = true;
+      if (recognizerRef.current) {
+        // 使用 ref 中的状态而不是闭包中的 state
+        const currentState = stateRef.current;
+        if (currentState === 'recording' || currentState === 'connected') {
+          recognizerRef.current.stop();
+        }
+        recognizerRef.current.destroy();
+        recognizerRef.current = null;
       }
     };
-  }, [appId, apiKey, apiSecret]); // 只在关键参数变化时重新创建实例
+  }, [appId, apiKey, apiSecret, language, domain, accent, hotWords, punctuation, autoStart, onStart, onStop, onResult, onError]);
   
   // 开始录音
-  const startRecognition = () => {
-    if (recognizerRef.current) {
+  const startRecognition = useCallback(() => {
+    if (recognizerRef.current && !isDestroyedRef.current) {
       setRecognitionText('');
       recognizerRef.current.start();
     }
-  };
+  }, []);
   
   // 停止录音
-  const stopRecognition = () => {
-    if (recognizerRef.current) {
+  const stopRecognition = useCallback(() => {
+    if (recognizerRef.current && !isDestroyedRef.current) {
       recognizerRef.current.stop();
     }
-  };
+  }, []);
   
   // 处理按钮点击事件
-  const handleButtonClick = () => {
-    if (state === 'recording') {
+  const handleButtonClick = useCallback(() => {
+    if (stateRef.current === 'recording') {
       stopRecognition();
     } else {
       startRecognition();
     }
-  };
+  }, [startRecognition, stopRecognition]);
   
   // 计算音量条宽度
   const getVolumeBarWidth = () => {
@@ -276,4 +308,4 @@ const SpeechRecognizer: React.FC<SpeechRecognizerProps> = ({
   );
 };
 
-export default SpeechRecognizer; 
+export default SpeechRecognizer;

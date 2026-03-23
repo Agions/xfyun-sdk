@@ -1,5 +1,26 @@
 # 更新日志
 
+## 1.1.0 (2026-03-23)
+
+### 新增
+
+- ✨ WebSocket 自动重连机制（`enableReconnect`、`reconnectAttempts`、`reconnectInterval`）
+- ✨ 可配置日志级别（`logLevel`：`debug` | `info` | `warn` | `error`）
+- ✨ `Logger` 类，支持统一日志管理
+- ✨ `destroy()` 方法，彻底释放资源
+
+### 修复
+
+- 🐛 修复 React 组件内存泄漏问题（使用 `stateRef` 避免闭包陷阱）
+- 🐛 修复 cleanup 函数中 state 闭包过期问题
+- 🐛 修复组件销毁后仍执行回调的问题（`isDestroyedRef`）
+- 🔧 抽取重复的 `business` 参数构建逻辑
+
+### 改进
+
+- ⚡️ 优化 `buildBusinessParams()` 减少重复代码
+- 📦 导出 `Logger` 类和 `LogLevel` 枚举
+
 ## 1.0.2 (2023-07-28)
 
 ### 修复
