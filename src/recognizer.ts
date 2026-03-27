@@ -208,7 +208,8 @@ export class XfyunASR {
   public destroy(): void {
     this.destroyed = true;
     this.clearReconnectTimer();
-    // 立即关闭 websocket，不用等 stop() 里的 1s 延迟
+
+    // 立即关闭 websocket
     if (this.websocketCloseTimer) {
       window.clearTimeout(this.websocketCloseTimer);
       this.websocketCloseTimer = null;
@@ -217,7 +218,19 @@ export class XfyunASR {
       this.websocket.close();
       this.websocket = null;
     }
-    // stop() 有状态守卫，destroy() 直接设置终态
+
+    // 停止 recorder
+    if (this.recorder && this.recorder.state !== 'inactive') {
+      this.recorder.stop();
+    }
+    this.stopVolumeDetection();
+    this.releaseMicrophone();
+
+    if (this.audioContext) {
+      this.audioContext.close();
+      this.audioContext = null;
+    }
+
     this.setState('stopped');
     this.logger.info('XfyunASR 实例已销毁');
   }

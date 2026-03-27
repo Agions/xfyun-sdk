@@ -201,7 +201,6 @@ const SpeechRecognizer: React.FC<SpeechRecognizerProps> = ({
       recognizer.destroy();
       recognizerRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appId, apiKey, apiSecret, language, domain, accent, hotWords, punctuation, autoStart]);
 
   // 开始录音
