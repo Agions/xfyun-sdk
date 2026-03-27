@@ -33,12 +33,14 @@ export class XfyunASR {
   private options: XfyunASROptions;
   private handlers: ASREventHandlers;
   private websocket: WebSocket | null = null;
+  private websocketCloseTimer: number | null = null;
   private recorder: MediaRecorder | null = null;
   private audioContext: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
-  private audioChunks: Blob[] = [];
+
   private state: RecognizerState = 'idle';
   private audioDataQueue: string[] = [];
+  private totalAudioBytes: number = 0;
   private recognitionResult: string = '';
   private volumeTimer: number | null = null;
   private microphoneStream: MediaStream | null = null;
@@ -109,8 +111,8 @@ export class XfyunASR {
       // 重置状态
       this.setState('connecting');
       this.recognitionResult = '';
-      this.audioChunks = [];
       this.audioDataQueue = [];
+      this.totalAudioBytes = 0;
       this.reconnectCount = 0;
 
       // 请求麦克风权限
@@ -154,11 +156,12 @@ export class XfyunASR {
       this.sendEndFrame();
 
       // 关闭WebSocket连接
-      setTimeout(() => {
+      this.websocketCloseTimer = window.setTimeout(() => {
         if (this.websocket) {
           this.websocket.close();
           this.websocket = null;
         }
+        this.websocketCloseTimer = null;
       }, 1000);
 
       // 关闭音频流
@@ -189,6 +192,15 @@ export class XfyunASR {
   public destroy(): void {
     this.destroyed = true;
     this.clearReconnectTimer();
+    // 立即关闭 websocket，不用等 stop() 里的 1s 延迟
+    if (this.websocketCloseTimer) {
+      window.clearTimeout(this.websocketCloseTimer);
+      this.websocketCloseTimer = null;
+    }
+    if (this.websocket) {
+      this.websocket.close();
+      this.websocket = null;
+    }
     this.stop();
     this.logger.info('XfyunASR 实例已销毁');
   }
@@ -275,15 +287,6 @@ export class XfyunASR {
       // 处理录音数据
       this.recorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
-          this.audioChunks.push(event.data);
-
-          // 超过最大音频大小时清空旧数据，防止内存溢出
-          const totalSize = this.audioChunks.reduce((acc, chunk) => acc + chunk.size, 0);
-          if (totalSize > (this.options.maxAudioSize || 1024 * 1024)) {
-            this.audioChunks = [];
-            this.logger.warn('音频数据超过大小限制，已清空缓冲区');
-          }
-          
           const reader = new FileReader();
           reader.onload = () => {
             if (this.state === 'recording' && !this.destroyed && reader.result instanceof ArrayBuffer) {
@@ -560,9 +563,17 @@ export class XfyunASR {
 
     while (this.audioDataQueue.length > 0) {
       const audioData = this.audioDataQueue.shift();
-      
+
       if (!audioData) continue;
-      
+
+      const maxSize = this.options.maxAudioSize || 1024 * 1024;
+      if (this.totalAudioBytes + audioData.length > maxSize) {
+        this.logger.warn('音频数据超过大小限制，停止发送');
+        // 清空剩余队列
+        this.audioDataQueue = [];
+        break;
+      }
+
       try {
         const frame: XfyunWebsocketRequest = {
           common: {
@@ -578,6 +589,7 @@ export class XfyunASR {
         };
 
         this.websocket.send(JSON.stringify(frame));
+        this.totalAudioBytes += audioData.length;
         this.logger.debug('发送音频数据帧, 大小:', audioData.length);
       } catch (error) {
         this.logger.error('发送音频数据失败:', error);
