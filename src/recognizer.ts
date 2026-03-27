@@ -251,22 +251,22 @@ export class XfyunASR {
       this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
         sampleRate: 16000
       });
-      
+
       // 创建分析器节点
       this.analyser = this.audioContext.createAnalyser();
       this.analyser.fftSize = 2048;
-      
+
       // 连接音频源
       this.audioSource = this.audioContext.createMediaStreamSource(this.microphoneStream);
       this.audioSource.connect(this.analyser);
-      
+
       // 检查支持的MIME类型
       const mimeTypes = [
         'audio/webm',
         'audio/webm;codecs=opus',
         'audio/ogg;codecs=opus'
       ];
-      
+
       let mimeType = '';
       for (const type of mimeTypes) {
         if (MediaRecorder.isTypeSupported(type)) {
@@ -274,13 +274,13 @@ export class XfyunASR {
           break;
         }
       }
-      
+
       if (!mimeType) {
         throw new Error('浏览器不支持任何可用的音频编码格式');
       }
-      
+
       this.logger.info('使用音频格式:', mimeType);
-      
+
       // 创建音频录制器
       this.recorder = new MediaRecorder(this.microphoneStream, {
         mimeType,
@@ -327,8 +327,14 @@ export class XfyunASR {
       
       this.logger.info('麦克风和录音器初始化完成');
     } catch (error) {
-      this.logger.error('获取麦克风权限失败:', error);
-      throw new Error(`获取麦克风权限失败: ${error}`);
+      // 清理部分初始化的资源
+      this.releaseMicrophone();
+      if (this.audioContext) {
+        this.audioContext.close();
+        this.audioContext = null;
+      }
+      this.logger.error('初始化麦克风失败:', error);
+      throw error;
     }
   }
 
