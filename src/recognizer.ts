@@ -42,6 +42,8 @@ export class XfyunASR {
   private audioDataQueue: string[] = [];
   private totalAudioBytes: number = 0;
   private recognitionResult: string = '';
+  // 缓存业务参数，避免每帧都 new 对象
+  private cachedBusinessParams: NonNullable<XfyunWebsocketRequest['business']> | null = null;
   private volumeTimer: number | null = null;
   private microphoneStream: MediaStream | null = null;
   
@@ -353,6 +355,10 @@ export class XfyunASR {
    * 构建公共业务参数（抽取重复代码）
    */
   private buildBusinessParams(): NonNullable<XfyunWebsocketRequest['business']> {
+    if (this.cachedBusinessParams) {
+      return this.cachedBusinessParams;
+    }
+
     const business: NonNullable<XfyunWebsocketRequest['business']> = {
       language: this.options.language,
       domain: this.options.domain,
@@ -383,6 +389,7 @@ export class XfyunASR {
       business.hotwords = this.options.hotWords.join(',');
     }
 
+    this.cachedBusinessParams = business;
     return business;
   }
 
