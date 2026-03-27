@@ -1,5 +1,23 @@
 # 更新日志
 
+## [1.2.1] (2026-03-27)
+
+### 优化
+
+- ⚡️ 提取 Logger 为独立模块 `src/logger.ts`，统一日志输出
+- ⚡️ `parseXfyunResult` 支持注入 Logger，日志一致
+- ⚡️ 缓存 businessParams，每帧不再重复分配对象
+- ⚡️ React 组件 styles/STATE_TEXT 提到组件外，useMemo 缓存按钮样式
+- ⚡️ 重连改为指数退避（2ⁿ × baseInterval，上限 30s）
+
+### 修复
+
+- 🐛 移除无用的 `audioChunks` 数组，修复 maxAudioSize 限制从未生效问题
+- 🐛 `destroy()` 立即关闭 WebSocket，不再等待 stop() 的 1s 延迟
+- 🐛 保留 `audioSource` 引用防止 GC 回收
+- 🐛 `initMicrophone()` 中途失败时正确释放已申请资源
+- 🐛 修复 React 组件 `onError` 类型 `any→unknown`
+
 ## [1.2.0] (2026-03-24)
 
 ### 新增
