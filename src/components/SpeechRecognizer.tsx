@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { XfyunASR } from '../recognizer';
-import { XfyunASROptions, RecognizerState } from '../types';
+import { RecognizerState } from '../types';
 
 // 组件的属性类型
 export interface SpeechRecognizerProps {
@@ -16,7 +16,7 @@ export interface SpeechRecognizerProps {
   onStart?: () => void;
   onStop?: () => void;
   onResult?: (text: string, isEnd: boolean) => void;
-  onError?: (error: any) => void;
+  onError?: (error: unknown) => void;
   className?: string;
   buttonClassName?: string;
   buttonStartText?: string;
@@ -25,7 +25,7 @@ export interface SpeechRecognizerProps {
   showStatus?: boolean;
 }
 
-// CSS 样式
+// CSS 样式 - 放在组件外只创建一次
 const styles = {
   container: {
     display: 'flex',
@@ -45,14 +45,8 @@ const styles = {
     outline: 'none',
     transition: 'background-color 0.3s',
   },
-  buttonHover: {
-    backgroundColor: '#1976D2',
-  },
   buttonRecording: {
     backgroundColor: '#F44336',
-  },
-  buttonRecordingHover: {
-    backgroundColor: '#D32F2F',
   },
   buttonDisabled: {
     backgroundColor: '#BDBDBD',
@@ -74,12 +68,11 @@ const styles = {
     borderRadius: '5px',
     overflow: 'hidden',
   },
-  volumeBar: (width: string) => ({
+  volumeBar: {
     height: '100%',
     backgroundColor: '#4CAF50',
     transition: 'width 0.1s',
-    width,
-  }),
+  },
   result: {
     marginTop: '20px',
     padding: '15px',
@@ -95,6 +88,16 @@ const styles = {
     whiteSpace: 'pre-wrap' as const,
     wordBreak: 'break-word' as const,
   },
+};
+
+// 状态文本映射 - 放在组件外
+const STATE_TEXT: Record<RecognizerState, string> = {
+  idle: '空闲',
+  connecting: '连接中...',
+  connected: '已连接',
+  recording: '录音中...',
+  stopped: '已停止',
+  error: '错误',
 };
 
 // 语音识别组件
@@ -122,29 +125,27 @@ const SpeechRecognizer: React.FC<SpeechRecognizerProps> = ({
   const [recognitionText, setRecognitionText] = useState<string>('');
   const [state, setState] = useState<RecognizerState>('idle');
   const [volume, setVolume] = useState<number>(0);
-  
+
   // 使用 ref 追踪状态，避免闭包问题
   const recognizerRef = useRef<XfyunASR | null>(null);
   const stateRef = useRef<RecognizerState>('idle');
   const isDestroyedRef = useRef(false);
-  
+
   // 保持 stateRef 同步
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
-  
+
   // 初始化语音识别实例
   useEffect(() => {
-    // 检查必填参数
     if (!appId || !apiKey || !apiSecret) {
       console.error('缺少必要参数: appId, apiKey, apiSecret');
       return;
     }
-    
-    // 标记为未销毁
+
     isDestroyedRef.current = false;
-    
-    const options: XfyunASROptions = {
+
+    const recognizer = new XfyunASR({
       appId,
       apiKey,
       apiSecret,
@@ -154,10 +155,7 @@ const SpeechRecognizer: React.FC<SpeechRecognizerProps> = ({
       hotWords,
       punctuation,
       autoStart,
-    };
-    
-    // 创建讯飞语音识别实例
-    recognizerRef.current = new XfyunASR(options, {
+    }, {
       onStart: () => {
         if (isDestroyedRef.current) return;
         setState('recording');
@@ -173,9 +171,9 @@ const SpeechRecognizer: React.FC<SpeechRecognizerProps> = ({
         setRecognitionText(prev => prev + text);
         onResult?.(text, isEnd);
       },
-      onProcess: (volumeValue) => {
+      onProcess: (vol) => {
         if (isDestroyedRef.current) return;
-        setVolume(volumeValue);
+        setVolume(vol);
       },
       onError: (error) => {
         if (isDestroyedRef.current) return;
@@ -187,27 +185,25 @@ const SpeechRecognizer: React.FC<SpeechRecognizerProps> = ({
         setState(newState);
       }
     });
-    
-    // 如果设置了自动开始，则启动
+
+    recognizerRef.current = recognizer;
+
     if (autoStart) {
-      recognizerRef.current.start();
+      recognizer.start();
     }
-    
-    // 组件卸载时清理资源
+
     return () => {
       isDestroyedRef.current = true;
-      if (recognizerRef.current) {
-        // 使用 ref 中的状态而不是闭包中的 state
-        const currentState = stateRef.current;
-        if (currentState === 'recording' || currentState === 'connected') {
-          recognizerRef.current.stop();
-        }
-        recognizerRef.current.destroy();
-        recognizerRef.current = null;
+      const currentState = stateRef.current;
+      if (currentState === 'recording' || currentState === 'connected') {
+        recognizer.stop();
       }
+      recognizer.destroy();
+      recognizerRef.current = null;
     };
-  }, [appId, apiKey, apiSecret, language, domain, accent, hotWords, punctuation, autoStart, onStart, onStop, onResult, onError]);
-  
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appId, apiKey, apiSecret, language, domain, accent, hotWords, punctuation, autoStart]);
+
   // 开始录音
   const startRecognition = useCallback(() => {
     if (recognizerRef.current && !isDestroyedRef.current) {
@@ -215,14 +211,14 @@ const SpeechRecognizer: React.FC<SpeechRecognizerProps> = ({
       recognizerRef.current.start();
     }
   }, []);
-  
+
   // 停止录音
   const stopRecognition = useCallback(() => {
     if (recognizerRef.current && !isDestroyedRef.current) {
       recognizerRef.current.stop();
     }
   }, []);
-  
+
   // 处理按钮点击事件
   const handleButtonClick = useCallback(() => {
     if (stateRef.current === 'recording') {
@@ -231,76 +227,49 @@ const SpeechRecognizer: React.FC<SpeechRecognizerProps> = ({
       startRecognition();
     }
   }, [startRecognition, stopRecognition]);
-  
-  // 计算音量条宽度
-  const getVolumeBarWidth = () => {
-    return `${Math.min(100, volume)}%`;
-  };
-  
-  // 获取状态文本
-  const getStatusText = () => {
-    switch (state) {
-      case 'idle':
-        return '空闲';
-      case 'connecting':
-        return '连接中...';
-      case 'connected':
-        return '已连接';
-      case 'recording':
-        return '录音中...';
-      case 'stopped':
-        return '已停止';
-      case 'error':
-        return '错误';
-      default:
-        return '未知状态';
-    }
-  };
-  
-  // 获取按钮样式
-  const getButtonStyle = () => {
+
+  // 按钮样式 - 用 useMemo 避免每次渲染创建新对象
+  const buttonStyle = useMemo(() => {
     if (state === 'connecting' || state === 'error') {
       return { ...styles.button, ...styles.buttonDisabled };
     }
-    
     if (state === 'recording') {
       return { ...styles.button, ...styles.buttonRecording };
     }
-    
     return styles.button;
-  };
-  
+  }, [state]);
+
+  // 音量条宽度
+  const volumeBarWidth = useMemo(() => `${Math.min(100, volume)}%`, [volume]);
+
+  const isRecording = state === 'recording';
+  const isDisabled = state === 'connecting' || state === 'error';
+
   return (
     <div style={styles.container} className={className}>
-      {/* 控制按钮 */}
       <button
-        style={getButtonStyle()}
+        style={buttonStyle}
         className={buttonClassName}
         onClick={handleButtonClick}
-        disabled={state === 'connecting' || state === 'error'}
+        disabled={isDisabled}
       >
-        {state === 'recording' ? buttonStopText : buttonStartText}
+        {isRecording ? buttonStopText : buttonStartText}
       </button>
-      
-      {/* 状态显示 */}
+
       {showStatus && (
         <div style={styles.status}>
-          状态: {getStatusText()}
+          状态: {STATE_TEXT[state]}
         </div>
       )}
-      
-      {/* 音量条 */}
-      {showVolume && state === 'recording' && (
+
+      {showVolume && isRecording && (
         <div style={styles.volumeContainer}>
           <div style={styles.volumeBarContainer}>
-            <div
-              style={styles.volumeBar(getVolumeBarWidth())}
-            ></div>
+            <div style={{ ...styles.volumeBar, width: volumeBarWidth }} />
           </div>
         </div>
       )}
-      
-      {/* 识别结果 */}
+
       <div style={styles.result}>
         {recognitionText}
       </div>

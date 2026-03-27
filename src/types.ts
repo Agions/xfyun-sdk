@@ -29,7 +29,7 @@ export type RecognizerState = 'idle' | 'connecting' | 'connected' | 'recording' 
 export interface XfyunError {
   code: number;
   message: string;
-  data?: any;
+  data?: unknown;
 }
 
 // 事件处理器

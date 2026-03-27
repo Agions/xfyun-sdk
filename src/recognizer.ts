@@ -188,6 +188,7 @@ export class XfyunASR {
    */
   public destroy(): void {
     this.destroyed = true;
+    this.clearReconnectTimer();
     this.stop();
     this.logger.info('XfyunASR 实例已销毁');
   }
@@ -275,6 +276,13 @@ export class XfyunASR {
       this.recorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           this.audioChunks.push(event.data);
+
+          // 超过最大音频大小时清空旧数据，防止内存溢出
+          const totalSize = this.audioChunks.reduce((acc, chunk) => acc + chunk.size, 0);
+          if (totalSize > (this.options.maxAudioSize || 1024 * 1024)) {
+            this.audioChunks = [];
+            this.logger.warn('音频数据超过大小限制，已清空缓冲区');
+          }
           
           const reader = new FileReader();
           reader.onload = () => {
@@ -470,24 +478,26 @@ export class XfyunASR {
     if (this.destroyed) return;
     if (!this.options.enableReconnect) return;
     if (this.isReconnecting) return;
-    
+
     const maxAttempts = this.options.reconnectAttempts || 3;
-    const interval = this.options.reconnectInterval || 3000;
-    
+    const baseInterval = this.options.reconnectInterval || 3000;
+
     if (this.reconnectCount >= maxAttempts) {
       this.logger.warn('已达到最大重连次数，重连停止');
       this.setState('error');
       return;
     }
-    
+
     this.isReconnecting = true;
     this.reconnectCount++;
-    
-    this.logger.info(`正在尝试第 ${this.reconnectCount} 次重连...`);
-    
+
+    // 指数退避: interval * 2^(attempt-1)，上限 30s
+    const interval = Math.min(baseInterval * Math.pow(2, this.reconnectCount - 1), 30000);
+    this.logger.info(`正在尝试第 ${this.reconnectCount} 次重连，间隔 ${interval}ms...`);
+
     this.reconnectTimer = window.setTimeout(() => {
       this.isReconnecting = false;
-      
+
       if (this.state === 'error' || this.state === 'idle') {
         this.start();
       }
