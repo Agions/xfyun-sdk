@@ -1,5 +1,5 @@
 // 导出核心功能
-export { XfyunASR } from './recognizer';
+export { XfyunASR, Logger, LogLevel } from './recognizer';
 
 // 导出 React 组件
 export { default as SpeechRecognizer } from './components/SpeechRecognizer';

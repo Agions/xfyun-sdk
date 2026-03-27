@@ -1,62 +1,15 @@
-import { 
-  XfyunASROptions, 
-  ASREventHandlers, 
-  RecognizerState, 
+import {
+  XfyunASROptions,
+  ASREventHandlers,
+  RecognizerState,
   XfyunWebsocketRequest,
   XfyunWebsocketResponse,
   XfyunError
 } from './types';
 import { generateAuthUrl, arrayBufferToBase64, parseXfyunResult, calculateVolume } from './utils';
+import { LogLevel, Logger } from './logger';
 
-/**
- * 日志级别
- */
-export enum LogLevel {
-  DEBUG = 0,
-  INFO = 1,
-  WARN = 2,
-  ERROR = 3,
-}
-
-/**
- * 统一的日志工具类
- */
-export class Logger {
-  private level: LogLevel = LogLevel.INFO;
-
-  setLevel(level: 'debug' | 'info' | 'warn' | 'error'): void {
-    switch (level) {
-      case 'debug': this.level = LogLevel.DEBUG; break;
-      case 'info': this.level = LogLevel.INFO; break;
-      case 'warn': this.level = LogLevel.WARN; break;
-      case 'error': this.level = LogLevel.ERROR; break;
-    }
-  }
-
-  debug(...args: any[]): void {
-    if (this.level <= LogLevel.DEBUG) {
-      console.debug('[XfyunASR]', ...args);
-    }
-  }
-
-  info(...args: any[]): void {
-    if (this.level <= LogLevel.INFO) {
-      console.info('[XfyunASR]', ...args);
-    }
-  }
-
-  warn(...args: any[]): void {
-    if (this.level <= LogLevel.WARN) {
-      console.warn('[XfyunASR]', ...args);
-    }
-  }
-
-  error(...args: any[]): void {
-    if (this.level <= LogLevel.ERROR) {
-      console.error('[XfyunASR]', ...args);
-    }
-  }
-}
+export { LogLevel, Logger };
 
 // 默认配置
 const DEFAULT_OPTIONS: Partial<XfyunASROptions> = {
@@ -116,7 +69,7 @@ export class XfyunASR {
     this.handlers = handlers;
     
     // 初始化日志器
-    this.logger = new Logger();
+    this.logger = new Logger('[XfyunASR]');
     this.logger.setLevel(this.options.logLevel || 'info');
     this.logger.info('XfyunASR 实例创建', this.options);
 
@@ -457,7 +410,7 @@ export class XfyunASR {
           }
           
           if (message.data && message.data.result) {
-            const text = parseXfyunResult(message.data.result);
+            const text = parseXfyunResult(message.data.result, this.logger);
             const isEnd = message.data.result.ls;
             
             this.logger.debug('解析识别结果:', text, '是否最终结果:', isEnd);

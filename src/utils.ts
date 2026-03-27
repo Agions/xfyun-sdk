@@ -1,4 +1,5 @@
 import CryptoJS from 'crypto-js';
+import { Logger } from './logger';
 
 /**
  * 判断是否在浏览器环境
@@ -60,7 +61,7 @@ export function arrayBufferToBase64(buffer: ArrayBuffer): string {
   for (let i = 0; i < bytes.byteLength; i++) {
     binary += String.fromCharCode(bytes[i]);
   }
-  
+
   if (isBrowser()) {
     return window.btoa(binary);
   }
@@ -71,9 +72,9 @@ export function arrayBufferToBase64(buffer: ArrayBuffer): string {
 /**
  * 解析科大讯飞返回的结果
  * @param result 科大讯飞返回的识别结果
- * @returns 解析后的文本
+ * @param logger 可选的日志记录器，若不提供则使用 console.error
  */
-export function parseXfyunResult(result: unknown): string {
+export function parseXfyunResult(result: unknown, logger?: Logger): string {
   if (!result || typeof result !== 'object') {
     return '';
   }
@@ -100,7 +101,11 @@ export function parseXfyunResult(result: unknown): string {
       return ws.cw.map((cw) => cw.w || '').join('');
     }).join('');
   } catch (error) {
-    console.error('解析讯飞结果失败:', error, '原始数据:', result);
+    if (logger) {
+      logger.error('解析讯飞结果失败:', error, '原始数据:', result);
+    } else {
+      console.error('[XfyunASR] 解析讯飞结果失败:', error, '原始数据:', result);
+    }
     return '';
   }
 }
