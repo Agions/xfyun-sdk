@@ -103,11 +103,8 @@ export class XfyunASR {
         return;
       }
 
-      if (this.state !== 'idle' && this.state !== 'stopped' && this.state !== 'error') {
-        this.handleError({
-          code: 10002,
-          message: '语音识别已在进行中'
-        });
+      if (this.state === 'connecting' || this.state === 'connected' || this.state === 'recording') {
+        this.logger.warn('语音识别已在进行中，忽略此次启动请求');
         return;
       }
 
@@ -117,11 +114,13 @@ export class XfyunASR {
       this.audioDataQueue = [];
       this.totalAudioBytes = 0;
       this.reconnectCount = 0;
+      this.cachedBusinessParams = null; // 每次 start 重新构建
 
       // 请求麦克风权限
       await this.initMicrophone();
 
       // 创建WebSocket连接
+      // 创建WebSocket连接（可能失败）
       this.initWebSocket();
 
       // 触发开始事件
@@ -129,6 +128,15 @@ export class XfyunASR {
         this.handlers.onStart();
       }
     } catch (error) {
+      // initWebSocket 失败，释放 initMicrophone 已申请的全部资源
+      this.releaseMicrophone();
+      if (this.audioContext) {
+        this.audioContext.close();
+        this.audioContext = null;
+      }
+      this.analyser = null;
+      this.audioSource = null;
+      this.recorder = null;
       this.handleError({
         code: 10003,
         message: '启动语音识别失败',
@@ -141,9 +149,14 @@ export class XfyunASR {
    * 停止语音识别
    */
   public stop(): void {
+    // 避免重复停止
+    if (this.state === 'idle' || this.state === 'stopped') {
+      return;
+    }
+
     this.clearReconnectTimer();
     this.isReconnecting = false;
-    
+
     try {
       this.setState('stopped');
 
@@ -204,7 +217,8 @@ export class XfyunASR {
       this.websocket.close();
       this.websocket = null;
     }
-    this.stop();
+    // stop() 有状态守卫，destroy() 直接设置终态
+    this.setState('stopped');
     this.logger.info('XfyunASR 实例已销毁');
   }
 
