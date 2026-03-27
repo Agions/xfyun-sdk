@@ -36,6 +36,7 @@ export class XfyunASR {
   private websocketCloseTimer: number | null = null;
   private recorder: MediaRecorder | null = null;
   private audioContext: AudioContext | null = null;
+  private audioSource: MediaStreamAudioSourceNode | null = null;
   private analyser: AnalyserNode | null = null;
 
   private state: RecognizerState = 'idle';
@@ -256,8 +257,8 @@ export class XfyunASR {
       this.analyser.fftSize = 2048;
       
       // 连接音频源
-      const source = this.audioContext.createMediaStreamSource(this.microphoneStream);
-      source.connect(this.analyser);
+      this.audioSource = this.audioContext.createMediaStreamSource(this.microphoneStream);
+      this.audioSource.connect(this.analyser);
       
       // 检查支持的MIME类型
       const mimeTypes = [
