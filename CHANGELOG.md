@@ -1,5 +1,26 @@
 # 更新日志
 
+## [1.2.2] (2026-03-28)
+
+### 新增
+
+- ✨ `examples/vue-demo/` 完整 Vue 3 + Vite 示例项目
+- ✨ `useSpeechRecognizer` Vue 3 组合式函数（composable）
+- ✨ `SpeechRecognizer.vue` 单文件组件（含音量条/状态徽章/动画）
+
+### 优化
+
+- ⚡️ README.md 全面专业化设计（架构图、最佳实践、框架集成）
+- ⚡️ CI workflow 切换为 pnpm（`pnpm/action-setup@v4`）
+- ⚡️ 所有 workflow 添加 `cache-dependency-path` 指向 `pnpm-lock.yaml`
+- ⚡️ 添加 npm 下载量 + CI + 覆盖率 Badge
+
+### 修复
+
+- 🐛 修复 `pnpm-lock.yaml` 与 `package.json` 版本不同步问题
+- 🐛 修复 CI `Setup Node.js` 因缓存 key 不稳定导致的失败
+- 🐛 修复 npm-publish / Release workflow `pnpm publish` detached HEAD 报错
+
 ## [1.2.1] (2026-03-27)
 
 ### 优化
