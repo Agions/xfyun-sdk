@@ -11,7 +11,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/npm/l/xfyun-sdk.svg" alt="License: MIT"/></a>
 </p>
 
-> 🗣️ 科大讯飞语音识别（ASR）Web SDK — 纯 TypeScript 编写的浏览器端实时语音转文字解决方案，支持原生 JS、React、Vue 及微信小程序多端接入。
+> 🗣️ 科大讯飞语音识别（ASR）、语音合成（TTS）、翻译 Web SDK — 纯 TypeScript 编写的浏览器端语音解决方案，支持原生 JS、React、Vue 及微信小程序多端接入。
 
 <p align="center">
   <img src="https://img.shields.io/badge/-WebSocket实时通讯-4A90E2?style=for-the-badge" alt="WebSocket"/>
@@ -19,6 +19,8 @@
   <img src="https://img.shields.io/badge/-零依赖-4CAF50?style=for-the-badge" alt="Zero Deps"/>
   <img src="https://img.shields.io/badge/-React_Hooks-61DAFB?style=for-the-badge" alt="React"/>
   <img src="https://img.shields.io/badge/-Vue_Composables-42b883?style=for-the-badge" alt="Vue"/>
+  <img src="https://img.shields.io/badge/-语音合成_TTS-FF6B6B?style=for-the-badge" alt="TTS"/>
+  <img src="https://img.shields.io/badge/-翻译_Translator-9B59B6?style=for-the-badge" alt="Translator"/>
 </p>
 
 ---
@@ -29,20 +31,20 @@
 · 特性亮点
 · 快速开始
 · 架构设计
+· 核心功能
+  · ASR 语音识别
+  · TTS 语音合成
+  · Translator 翻译
 · 完整示例
   · 原生 JavaScript
   · React Hooks
-  · Vue 3 Composables  ← 新增
-  · Vue 3 组件          ← 新增
+  · Vue 3 Composables
 · API 参考
 · 高级配置
 · 框架集成
-  · React 组件
-  · Vue 3 组件          ← 新增
 · 最佳实践
 · 常见问题
 · 更新日志
-· 相关项目
 ```
 
 ---
@@ -51,7 +53,9 @@
 
 | 特性 | 说明 |
 |------|------|
-| 🔄 **实时流式识别** | WebSocket 全双工通信，边说边识别，低延迟 |
+| 🎤 **ASR 实时识别** | WebSocket 全双工通信，边说边识别，低延迟 |
+| 🔊 **TTS 流式合成** | 流式语音合成，支持多种音色、语速调节 |
+| 🌐 **翻译支持** | 语音翻译（边说边译）+ 文本翻译，多语言 |
 | 🤖 **智能 VAD 检测** | Silence detection，语音结束自动断句 |
 | 🔁 **自动重连** | WebSocket 断开自动尝试重连，支持指数退避 |
 | 🧩 **多端支持** | 原生 JS / React 组件 / Vue 3 组合式函数 / 微信小程序 |
@@ -61,14 +65,13 @@
 | ⚡ **零外部依赖** | 仅依赖 crypto-js，无其他运行时依赖 |
 | 🌐 **SSR 兼容** | 自动检测浏览器环境，Next.js / Nuxt 下不报错 |
 
-### 支持的语言与场景
+### 支持的功能矩阵
 
-| 语言 | 方言/模式 | 适用场景 |
-|------|-----------|---------|
-| 中文 | 普通话、粤语 | 日常对话、聊天输入 |
-| 英文 | 美式/英式 | 跨国沟通、外语学习 |
-| 领域模式 | 医疗 (`medical`) | 病历录入、处方识别 |
-| 领域模式 | 口语助手 (`assistant`) | 智能问答、语音交互 |
+| 功能 | 语言/方言 | 格式 | 说明 |
+|------|-----------|------|------|
+| ASR 识别 | 普通话、粤语、英语 | webm/ogg | 实时语音转文字 |
+| TTS 合成 | 40+ 音色 | mp3/wav/pcm | 文本转语音 |
+| 翻译 | 16 种语言 | text/audio | 语音+文本翻译 |
 
 ---
 
@@ -87,13 +90,12 @@ pnpm add xfyun-sdk
 yarn add xfyun-sdk
 ```
 
-### CDN 引入（原型开发 / HTML 单文件）
+### CDN 引入
 
 ```html
 <script src="https://cdn.jsdelivr.net/npm/xfyun-sdk/dist/index.umd.js"></script>
 <script>
-  const { XfyunASR } = window.xfyunSdk;
-  // ...
+  const { XfyunASR, XfyunTTS, XfyunTranslator } = window.xfyunSdk;
 </script>
 ```
 
@@ -101,10 +103,10 @@ yarn add xfyun-sdk
 
 1. 访问 [科大讯飞开放平台](https://www.xfyun.cn/)
 2. 注册账号并登录
-3. 创建应用 → 选择「语音听写 (iat)」服务
+3. 创建应用 → 选择服务（语音听写 / 语音合成 / 翻译）
 4. 在「应用管理」获取 `AppID`、`APIKey`、`APISecret`
 
-> ⚠️ **安全提示**：请勿将 `AppID` / `APIKey` / `APISecret` 直接硬编码在前端代码中。推荐通过环境变量或自己的后端服务中转。
+> ⚠️ **安全提示**：请勿将密钥直接硬编码在前端代码中。推荐通过环境变量或后端服务中转。
 
 ---
 
@@ -117,58 +119,34 @@ yarn add xfyun-sdk
 └──────────────────────────┬──────────────────────────────┘
                            │
 ┌──────────────────────────▼──────────────────────────────┐
-│                     XfyunASR Core                       │
+│                      XfyunSDK Core                      │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
-│  │ AudioCapturer │  │  WSManager   │  │  ResultParser │ │
-│  │  (麦克风采集) │  │ (WebSocket)  │  │  (结果解析)   │  │
+│  │  XfyunASR    │  │  XfyunTTS    │  │ XfyunTranslator │
+│  │  语音识别    │  │  语音合成    │  │    翻译      │  │
+│  └──────────────┘  └──────────────┘  └──────────────┘  │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
+│  │ AudioCapturer │  │ AudioPlayer  │  │ WSManager    │  │
+│  │  (麦克风采集) │  │  (音频播放)  │  │ (WebSocket)  │  │
 │  └──────────────┘  └──────────────┘  └──────────────┘  │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
 │  │   VAD Engine │  │  Reconnector  │  │    Logger    │ │
-│  │  (静音检测)  │  │  (自动重连)   │  │   (分级日志)  │  │
+│  │  (静音检测)  │  │  (自动重连)   │  │   (分级日志)  │ │
 │  └──────────────┘  └──────────────┘  └──────────────┘  │
 └──────────────────────────┬──────────────────────────────┘
                            │
               ┌────────────▼────────────┐
-              │   讯飞 WebSocket API    │
+              │   讯飞 WebSocket API   │
               │  wss://iat-api.xfyun.cn │
+              │  wss://tts-api.xfyun.cn │
+              │  wss://itr-api.xfyun.cn │
               └─────────────────────────┘
-```
-
-### 识别流程
-
-```
-用户按下"开始"
-      │
-      ▼
-申请麦克风权限
-      │
-      ▼
-生成讯飞签名 ──► 建立 WebSocket 连接
-      │              │
-      │              ▼
-      │         发送业务参数
-      │              │
-      ▼              ▼
-浏览器录音 ◄───── 实时音频流
-( MediaRecorder)      │
-      │               ▼
-      │         讯飞实时返回识别结果
-      │               │
-      ▼               ▼
-回调 onResult() ◄── 回调 onResult()
-      │
-      ▼
-用户按下"停止"
-      │
-      ▼
-关闭 WebSocket + 释放麦克风
 ```
 
 ---
 
-## 📖 完整示例
+## 🎤 ASR 语音识别
 
-### 原生 JavaScript
+### 快速使用
 
 ```javascript
 import { XfyunASR } from 'xfyun-sdk';
@@ -179,10 +157,8 @@ const recognizer = new XfyunASR(
     apiKey: import.meta.env.VITE_XFYUN_API_KEY,
     apiSecret: import.meta.env.VITE_XFYUN_API_SECRET,
     language: 'zh_cn',
-    domain: 'iat',
     accent: 'mandarin',
     vadEos: 3000,
-    autoStart: false,
   },
   {
     onStart: () => console.log('🟢 识别已开始'),
@@ -191,8 +167,8 @@ const recognizer = new XfyunASR(
       console.log(`📝 ${isEnd ? '[最终]' : '[中间]'} ${text}`);
     },
     onProcess: (volume) => {
-      const bar = '█'.repeat(Math.round(volume * 10)) + '░'.repeat(10 - Math.round(volume * 10));
-      console.log(`🔊 ${bar} ${Math.round(volume * 100)}%`);
+      const bar = '█'.repeat(Math.round(volume * 10));
+      console.log(`🔊 ${bar}`);
     },
     onError: (error) => console.error('❌ 错误:', error),
   }
@@ -203,383 +179,277 @@ recognizer.stop();
 recognizer.destroy();
 ```
 
+---
+
+## 🔊 TTS 语音合成
+
+### 快速使用
+
+```javascript
+import { XfyunTTS } from 'xfyun-sdk';
+
+const synthesizer = new XfyunTTS(
+  {
+    appId: import.meta.env.VITE_XFYUN_APP_ID,
+    apiKey: import.meta.env.VITE_XFYUN_API_KEY,
+    apiSecret: import.meta.env.VITE_XFYUN_API_SECRET,
+    voice_name: 'xiaoyan',  // 青年女声
+    speed: 50,               // 语速 0-100
+    pitch: 50,               // 音调 0-100
+    volume: 50,              // 音量 0-100
+    audioFormat: 'mp3',      // mp3/wav/pcm
+  },
+  {
+    onStart: () => console.log('🟢 合成开始'),
+    onEnd: () => console.log('🔴 合成结束'),
+    onAudioData: (audioData) => {
+      // 流式音频数据
+      console.log('收到音频:', audioData.byteLength, 'bytes');
+    },
+    onProgress: (current, total) => {
+      console.log(`进度: ${current}/${total}`);
+    },
+    onError: (error) => console.error('❌ 错误:', error),
+  }
+);
+
+// 开始合成
+synthesizer.start('你好，这是语音合成测试。');
+
+// 停止合成
+synthesizer.stop();
+
+// 销毁实例
+synthesizer.destroy();
+```
+
+### TTS 发音人列表
+
+| 类别 | 发音人 | 说明 |
+|------|--------|------|
+| 青年女声 | `xiaoyan` | 小燕（默认） |
+| 青年女声 | `aisjiuxu` | 许久 |
+| 青年女声 | `aisxiaoyuan` | 小媛 |
+| 青年男声 | `aisxiaofeng` | 小峰 |
+| 青年男声 | `aisnan` | 楠楠 |
+| 中年男声 | `aisdarong` | 大荣 |
+| 四川话 | `aisjiuyuan` | 四川话女声 |
+| 东北话 | `aisxiaomao` | 东北话女声 |
+| 童声 | `aisxiaowawa` | 童声 |
+| 粤语 | `aisxiaoyan` | 粤语女声 |
+| 英文 | `aisxiaoyaxi` | 英文女声-雅西 |
+
+> 更多发音人请参考 [docs/api/TTS.md](./docs/api/TTS.md)
+
+---
+
+## 🌐 Translator 翻译
+
+### 文本翻译
+
+```javascript
+import { XfyunTranslator } from 'xfyun-sdk';
+
+// 方式一：静态方法（推荐）
+const result = await XfyunTranslator.translateText(
+  '你好，世界！',
+  {
+    appId: import.meta.env.VITE_XFYUN_APP_ID,
+    apiKey: import.meta.env.VITE_XFYUN_API_KEY,
+    apiSecret: import.meta.env.VITE_XFYUN_API_SECRET,
+    from: 'cn',
+    to: 'en',
+  }
+);
+
+console.log(result.sourceText); // 你好，世界！
+console.log(result.targetText); // Hello, World!
+
+// 方式二：实例方法
+const translator = new XfyunTranslator(
+  {
+    appId: 'your_app_id',
+    apiKey: 'your_api_key',
+    apiSecret: 'your_api_secret',
+    type: 'text',
+    from: 'en',
+    to: 'ja',
+  },
+  {
+    onResult: (result) => {
+      console.log('翻译结果:', result.targetText);
+    },
+  }
+);
+
+translator.start('Hello, how are you?');
+```
+
+### 语音翻译（边说边译）
+
+```javascript
+import { XfyunTranslator } from 'xfyun-sdk';
+
+const translator = new XfyunTranslator(
+  {
+    appId: 'your_app_id',
+    apiKey: 'your_api_key',
+    apiSecret: 'your_api_secret',
+    type: 'asr',           // 语音翻译模式
+    from: 'cn',            // 源语言：中文
+    to: 'en',              // 目标语言：英文
+    domain: 'iner',        // 场景：日常对话
+    vadEos: 5000,          // 静音检测超时
+  },
+  {
+    onStart: () => console.log('翻译开始'),
+    onResult: (result) => {
+      console.log('源文:', result.sourceText);
+      console.log('译文:', result.targetText);
+      console.log('是否最终:', result.isFinal);
+    },
+    onEnd: () => console.log('翻译结束'),
+  }
+);
+
+// 开始语音翻译
+translator.start();
+
+// 停止翻译
+translator.stop();
+
+// 销毁实例
+translator.destroy();
+```
+
+### 支持的语言
+
+| 代码 | 语言 | 代码 | 语言 |
+|------|------|------|------|
+| `cn` | 中文 | `de` | 德语 |
+| `en` | 英文 | `pt` | 葡萄牙语 |
+| `ja` | 日语 | `vi` | 越南语 |
+| `ko` | 韩语 | `id` | 印尼语 |
+| `fr` | 法语 | `ms` | 马来西亚语 |
+| `es` | 西班牙语 | `ru` | 俄语 |
+| `it` | 意大利语 | `ar` | 阿拉伯语 |
+| `hi` | 印地语 | `th` | 泰语 |
+
+---
+
+## 📖 完整示例
+
+### 原生 JavaScript（ASR + TTS + 翻译）
+
+```javascript
+import { XfyunASR, XfyunTTS, XfyunTranslator } from 'xfyun-sdk';
+
+// 配置
+const config = {
+  appId: 'your_app_id',
+  apiKey: 'your_api_key',
+  apiSecret: 'your_api_secret',
+};
+
+// ASR 实例
+const asr = new XfyunASR(config, {
+  onRecognitionResult: (text) => {
+    console.log('识别:', text);
+  },
+});
+
+// TTS 实例
+const tts = new XfyunTTS({
+  ...config,
+  voice_name: 'xiaoyan',
+  audioFormat: 'mp3',
+}, {
+  onAudioData: (data) => playAudio(data),
+});
+
+// 翻译实例
+const translator = new XfyunTranslator({
+  ...config,
+  type: 'text',
+  from: 'cn',
+  to: 'en',
+}, {
+  onResult: (result) => {
+    console.log('翻译:', result.targetText);
+    tts.start(result.targetText);
+  },
+});
+
+// 组合使用：识别 -> 翻译 -> 合成
+asr.start();  // 开始识别
+
+// 或者直接翻译文本
+translator.start('今天天气真好！');
+```
+
 ### React Hooks（推荐）
 
 ```tsx
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { XfyunASR, XfyunASROptions, ASREventHandlers } from 'xfyun-sdk';
+import { useEffect, useRef, useState } from 'react';
+import { XfyunASR, XfyunTTS, XfyunTranslator, XfyunASROptions } from 'xfyun-sdk';
 
+// 语音识别 Hook
 export function useSpeechRecognizer(options: Partial<XfyunASROptions>) {
   const recognizerRef = useRef<XfyunASR | null>(null);
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
-  const [error, setError] = useState<string | null>(null);
-
-  const handlers: ASREventHandlers = {
-    onStart: () => setIsListening(true),
-    onStop: () => setIsListening(false),
-    onRecognitionResult: (text, isEnd) => {
-      setTranscript((prev) => (isEnd ? prev + text + '\n' : prev + text));
-    },
-    onError: (err) => setError(err.message),
-  };
 
   useEffect(() => {
-    recognizerRef.current = new XfyunASR(
-      {
-        appId: options.appId!,
-        apiKey: options.apiKey!,
-        apiSecret: options.apiSecret!,
-        language: options.language ?? 'zh_cn',
-        accent: options.accent ?? 'mandarin',
-        vadEos: options.vadEos ?? 3000,
+    recognizerRef.current = new XfyunASR(options as XfyunASROptions, {
+      onStart: () => setIsListening(true),
+      onStop: () => setIsListening(false),
+      onRecognitionResult: (text, isEnd) => {
+        setTranscript((prev) => (isEnd ? prev + text + '\n' : prev + text));
       },
-      handlers
-    );
-
+    });
     return () => recognizerRef.current?.destroy();
   }, []);
 
-  const start = useCallback(() => recognizerRef.current?.start(), []);
-  const stop = useCallback(() => recognizerRef.current?.stop(), []);
-
-  return { isListening, transcript, error, start, stop };
+  return {
+    isListening,
+    transcript,
+    start: () => recognizerRef.current?.start(),
+    stop: () => recognizerRef.current?.stop(),
+  };
 }
 ```
 
 ### Vue 3 Composables（推荐）
 
 ```typescript
-// composables/useSpeechRecognizer.ts
-import { ref, onUnmounted, type Ref } from 'vue';
-import { XfyunASR, type XfyunASROptions, type ASREventHandlers } from 'xfyun-sdk';
+import { ref, onUnmounted } from 'vue';
+import { XfyunTTS, type XfyunTTSOptions } from 'xfyun-sdk';
 
-export interface UseSpeechRecognizerReturn {
-  isListening: Ref<boolean>;
-  transcript: Ref<string>;
-  error: Ref<string | null>;
-  volume: Ref<number>;
-  state: Ref<string>;
-  start: () => Promise<void>;
-  stop: () => void;
-  destroy: () => void;
-}
+export function useSpeechSynthesizer(options: Partial<XfyunTTSOptions>) {
+  const synthesizerRef = ref<XfyunTTS | null>(null);
+  const isSynthesizing = ref(false);
+  const audioChunks = ref<ArrayBuffer[]>([]);
 
-export function useSpeechRecognizer(
-  options: Partial<XfyunASROptions>
-): UseSpeechRecognizerReturn {
-  const isListening = ref(false);
-  const transcript = ref('');
-  const error = ref<string | null>(null);
-  const volume = ref(0);
-  const state = ref<'idle' | 'connecting' | 'connected' | 'recording' | 'stopped' | 'error'>('idle');
-
-  let recognizer: XfyunASR | null = null;
-
-  const handlers: ASREventHandlers = {
-    onStart: () => {
-      isListening.value = true;
-    },
-    onStop: () => {
-      isListening.value = false;
-    },
-    onRecognitionResult: (text, isEnd) => {
-      transcript.value += text;
-      if (isEnd) transcript.value += '\n';
-    },
-    onProcess: (v) => {
-      volume.value = v;
-    },
-    onError: (err) => {
-      error.value = err.message;
-      isListening.value = false;
-    },
-    onStateChange: (s) => {
-      state.value = s;
-    },
-  };
-
-  const initRecognizer = () => {
-    if (!options.appId || !options.apiKey || !options.apiSecret) {
-      error.value = '缺少必要的 API 配置（appId / apiKey / apiSecret）';
-      return;
-    }
-
-    recognizer = new XfyunASR(
+  const init = () => {
+    synthesizerRef.value = new XfyunTTS(
+      options as XfyunTTSOptions,
       {
-        appId: options.appId,
-        apiKey: options.apiKey,
-        apiSecret: options.apiSecret,
-        language: options.language ?? 'zh_cn',
-        domain: options.domain ?? 'iat',
-        accent: options.accent ?? 'mandarin',
-        vadEos: options.vadEos ?? 3000,
-        autoStart: false,
-        ...options,
-      },
-      handlers
+        onStart: () => (isSynthesizing.value = true),
+        onEnd: () => (isSynthesizing.value = false),
+        onAudioData: (data) => audioChunks.value.push(data),
+      }
     );
   };
 
-  initRecognizer();
+  const speak = (text: string) => synthesizerRef.value?.start(text);
+  const stop = () => synthesizerRef.value?.stop();
+  const destroy = () => synthesizerRef.value?.destroy();
 
-  const start = async () => {
-    if (!recognizer) {
-      error.value = 'Recognizer 未初始化';
-      return;
-    }
-    transcript.value = '';
-    error.value = null;
-    await recognizer.start();
-  };
+  init();
+  onUnmounted(destroy);
 
-  const stop = () => {
-    recognizer?.stop();
-  };
-
-  const destroy = () => {
-    recognizer?.destroy();
-    recognizer = null;
-  };
-
-  onUnmounted(() => {
-    destroy();
-  });
-
-  return {
-    isListening,
-    transcript,
-    error,
-    volume,
-    state,
-    start,
-    stop,
-    destroy,
-  };
+  return { isSynthesizing, audioChunks, speak, stop, destroy };
 }
-```
-
-### Vue 3 SFC 组件
-
-```vue
-<!-- components/SpeechRecognizer.vue -->
-<template>
-  <div class="speech-recognizer">
-    <!-- 状态指示器 -->
-    <div class="status-bar">
-      <span :class="['status-badge', state]">
-        {{ STATE_TEXT[state] }}
-      </span>
-      <span v-if="error" class="error-text">{{ error }}</span>
-    </div>
-
-    <!-- 音量可视化 -->
-    <div v-if="showVolume" class="volume-bar">
-      <div class="volume-fill" :style="{ width: `${volume * 100}%` }" />
-    </div>
-
-    <!-- 转写结果 -->
-    <div v-if="showResult" class="transcript-box">
-      <pre>{{ transcript || '等待说话...' }}</pre>
-    </div>
-
-    <!-- 控制按钮 -->
-    <button
-      :class="['control-btn', { listening: isListening }]"
-      :disabled="!appId || !apiKey || !apiSecret"
-      @click="isListening ? stop() : start()"
-    >
-      {{ isListening ? '⏹ 停止' : '🎤 开始识别' }}
-    </button>
-  </div>
-</template>
-
-<script setup lang="ts">
-import { useSpeechRecognizer } from './composables/useSpeechRecognizer';
-
-const props = withDefaults(
-  defineProps<{
-    appId: string;
-    apiKey: string;
-    apiSecret: string;
-    language?: 'zh_cn' | 'en_us';
-    domain?: 'iat' | 'medical' | 'assistant';
-    accent?: 'mandarin' | 'cantonese';
-    vadEos?: number;
-    autoStart?: boolean;
-    showVolume?: boolean;
-    showResult?: boolean;
-    showStatus?: boolean;
-  }>(),
-  {
-    language: 'zh_cn',
-    domain: 'iat',
-    accent: 'mandarin',
-    vadEos: 3000,
-    autoStart: false,
-    showVolume: true,
-    showResult: true,
-    showStatus: true,
-  }
-);
-
-const emit = defineEmits<{
-  start: [];
-  stop: [];
-  result: [text: string, isEnd: boolean];
-  error: [error: Error];
-}>();
-
-const { isListening, transcript, error, volume, state, start, stop } =
-  useSpeechRecognizer({
-    appId: props.appId,
-    apiKey: props.apiKey,
-    apiSecret: props.apiSecret,
-    language: props.language,
-    domain: props.domain,
-    accent: props.accent,
-    vadEos: props.vadEos,
-    autoStart: props.autoStart,
-  });
-
-const STATE_TEXT: Record<string, string> = {
-  idle: '⏸ 空闲',
-  connecting: '🔗 连接中...',
-  connected: '✅ 已连接',
-  recording: '🎙 录音中',
-  stopped: '⏹ 已停止',
-  error: '❌ 错误',
-};
-</script>
-
-<style scoped>
-.speech-recognizer {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 16px;
-  max-width: 480px;
-}
-
-.status-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 24px;
-}
-
-.status-badge {
-  padding: 4px 12px;
-  border-radius: 16px;
-  font-size: 13px;
-  font-weight: 500;
-}
-.status-badge.idle    { background: #f0f0f0; color: #666; }
-.status-badge.connecting { background: #e3f2fd; color: #1565c0; }
-.status-badge.connected  { background: #e8f5e9; color: #2e7d32; }
-.status-badge.recording  { background: #fff3e0; color: #e65100; animation: pulse 1.5s infinite; }
-.status-badge.stopped    { background: #f5f5f5; color: #9e9e9e; }
-.status-badge.error       { background: #ffebee; color: #c62828; }
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
-}
-
-.volume-bar {
-  height: 8px;
-  background: #eee;
-  border-radius: 4px;
-  overflow: hidden;
-}
-.volume-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #4caf50, #8bc34a);
-  transition: width 0.1s ease;
-  border-radius: 4px;
-}
-
-.transcript-box {
-  background: #fafafa;
-  border: 1px solid #eee;
-  border-radius: 8px;
-  padding: 12px;
-  min-height: 80px;
-  max-height: 200px;
-  overflow-y: auto;
-}
-.transcript-box pre {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.6;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.control-btn {
-  padding: 12px 24px;
-  font-size: 16px;
-  font-weight: 600;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  background: #4caf50;
-  color: white;
-  transition: all 0.2s;
-}
-.control-btn:hover:not(:disabled) {
-  background: #43a047;
-  transform: translateY(-1px);
-}
-.control-btn.listening {
-  background: #f44336;
-}
-.control-btn.listening:hover {
-  background: #e53935;
-}
-.control-btn:disabled {
-  background: #ccc;
-  cursor: not-allowed;
-}
-</style>
-```
-
-### Vue 3 使用示例
-
-```vue
-<template>
-  <div id="app">
-    <SpeechRecognizer
-      :app-id="appId"
-      :api-key="apiKey"
-      :api-secret="apiSecret"
-      language="zh_cn"
-      accent="mandarin"
-      :show-volume="true"
-      :show-result="true"
-      :show-status="true"
-      @result="onResult"
-      @error="onError"
-    />
-  </div>
-</template>
-
-<script setup lang="ts">
-import { ref } from 'vue';
-import SpeechRecognizer from './components/SpeechRecognizer.vue';
-
-const appId = import.meta.env.VITE_XFYUN_APP_ID;
-const apiKey = import.meta.env.VITE_XFYUN_API_KEY;
-const apiSecret = import.meta.env.VITE_XFYUN_API_SECRET;
-
-const onResult = (text: string, isEnd: boolean) => {
-  console.log(`识别结果 [${isEnd ? '最终' : '中间'}]:`, text);
-};
-
-const onError = (err: Error) => {
-  console.error('识别错误:', err.message);
-};
-</script>
 ```
 
 ---
@@ -588,64 +458,75 @@ const onError = (err: Error) => {
 
 ### XfyunASROptions
 
-| 参数 | 类型 | 默认值 | 必填 | 说明 |
-|------|------|--------|------|------|
-| `appId` | `string` | — | ✅ | 讯飞应用 ID |
-| `apiKey` | `string` | — | ✅ | 讯飞 API Key |
-| `apiSecret` | `string` | — | ✅ | 讯飞 API Secret |
-| `language` | `'zh_cn' \| 'en_us'` | `'zh_cn'` | ❌ | 识别语言 |
-| `domain` | `'iat' \| 'medical' \| 'assistant'` | `'iat'` | ❌ | 领域模型 |
-| `accent` | `'mandarin' \| 'cantonese'` | `'mandarin'` | ❌ | 方言 |
-| `vadEos` | `number` | `3000` | ❌ | 静音超时(ms)，超时自动停止 |
-| `maxAudioSize` | `number` | `1048576` | ❌ | 最大音频字节数 |
-| `autoStart` | `boolean` | `false` | ❌ | 初始化后自动开始 |
-| `hotWords` | `string[]` | `[]` | ❌ | 热词列表，提高特定词识别率 |
-| `punctuation` | `boolean \| string` | `true` | ❌ | 自动加标点 |
-| `audioFormat` | `string` | `'audio/L16;rate=16000'` | ❌ | 音频格式 |
-| `enableReconnect` | `boolean` | `false` | ❌ | 启用自动重连 |
-| `reconnectAttempts` | `number` | `3` | ❌ | 重连次数 |
-| `reconnectInterval` | `number` | `3000` | ❌ | 重连间隔(ms)，支持指数退避 |
-| `logLevel` | `'debug' \| 'info' \| 'warn' \| 'error'` | `'info'` | ❌ | 日志级别 |
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `appId` | `string` | — | 讯飞应用 ID |
+| `apiKey` | `string` | — | 讯飞 API Key |
+| `apiSecret` | `string` | — | 讯飞 API Secret |
+| `language` | `'zh_cn' \| 'en_us'` | `'zh_cn'` | 识别语言 |
+| `domain` | `'iat' \| 'medical' \| 'assistant'` | `'iat'` | 领域模型 |
+| `accent` | `'mandarin' \| 'cantonese'` | `'mandarin'` | 方言 |
+| `vadEos` | `number` | `3000` | 静音超时(ms) |
+| `autoStart` | `boolean` | `false` | 自动开始 |
+| `enableReconnect` | `boolean` | `false` | 启用重连 |
+| `logLevel` | `'debug' \| 'info' \| 'warn' \| 'error'` | `'info'` | 日志级别 |
+
+### XfyunTTSOptions
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `appId` | `string` | — | 讯飞应用 ID |
+| `apiKey` | `string` | — | 讯飞 API Key |
+| `apiSecret` | `string` | — | 讯飞 API Secret |
+| `voice_name` | `TTSVoiceName` | `'xiaoyan'` | 发音人 |
+| `speed` | `number` | `50` | 语速 0-100 |
+| `pitch` | `number` | `50` | 音调 0-100 |
+| `volume` | `number` | `50` | 音量 0-100 |
+| `audioFormat` | `'mp3' \| 'wav' \| 'pcm'` | `'mp3'` | 音频格式 |
+| `sampleRate` | `number` | `16000` | 采样率 |
+| `logLevel` | `'debug' \| 'info' \| 'warn' \| 'error'` | `'info'` | 日志级别 |
+
+### XfyunTranslatorOptions
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `appId` | `string` | — | 讯飞应用 ID |
+| `apiKey` | `string` | — | 讯飞 API Key |
+| `apiSecret` | `string` | — | 讯飞 API Secret |
+| `type` | `'asr' \| 'text'` | `'asr'` | 翻译类型 |
+| `from` | `SourceLanguage` | `'cn'` | 源语言 |
+| `to` | `TargetLanguage` | `'en'` | 目标语言 |
+| `domain` | `'iner' \| 'video' \| 'command'` | `'iner'` | 语音翻译场景 |
+| `vadEos` | `number` | `5000` | VAD 超时(ms) |
+| `logLevel` | `'debug' \| 'info' \| 'warn' \| 'error'` | `'info'` | 日志级别 |
 
 ### ASREventHandlers
 
 | 回调 | 参数 | 说明 |
 |------|------|------|
-| `onStart` | `() => void` | 开始识别时触发 |
-| `onStop` | `() => void` | 停止识别时触发 |
-| `onRecognitionResult` | `(text: string, isEnd: boolean) => void` | 识别结果，`isEnd=true` 表示最终结果 |
-| `onProcess` | `(volume: number) => void` | 实时音量，0~1 |
-| `onError` | `(error: Error) => void` | 错误回调 |
+| `onStart` | `() => void` | 开始识别 |
+| `onStop` | `() => void` | 停止识别 |
+| `onRecognitionResult` | `(text: string, isEnd: boolean) => void` | 识别结果 |
+| `onProcess` | `(volume: number) => void` | 实时音量 |
+| `onError` | `(error: XfyunError) => void` | 错误回调 |
 | `onStateChange` | `(state: RecognizerState) => void` | 状态变化 |
 
 ### RecognizerState 状态机
 
 | 状态 | 说明 |
 |------|------|
-| `idle` | ⏸️ 初始空闲状态 |
-| `connecting` | 🔗 正在建立 WebSocket 连接 |
-| `connected` | ✅ 已连接，等待录音 |
-| `recording` | 🎙️ 正在录音 |
+| `idle` | ⏸️ 空闲 |
+| `connecting` | 🔗 连接中 |
+| `connected` | ✅ 已连接 |
+| `recording` | 🎙️ 录音中 |
 | `stopped` | ⏹️ 已停止 |
-| `error` | ❌ 发生错误 |
-
-### 实例方法
-
-```typescript
-.start()           // 开始识别（申请麦克风 + 建立连接）
-.stop()             // 停止识别（断开连接 + 释放麦克风）
-.destroy()          // 销毁实例，释放所有资源（必须调用！）
-.getResult()        // 获取当前累积的识别结果
-.getState()         // 获取当前状态机状态
-.clearResult()      // 清除当前识别结果（不清除状态）
-.reset()            // 重置到 idle 状态
-```
+| `error` | ❌ 错误 |
 
 ---
 
 ## 🔧 高级配置
 
-### 热词识别
+### 热词识别（ASR）
 
 ```javascript
 const recognizer = new XfyunASR({
@@ -654,156 +535,30 @@ const recognizer = new XfyunASR({
 }, handlers);
 ```
 
-### 自定义日志
+### TTS 多种音色
 
 ```javascript
-// 运行时修改日志级别
-recognizer.logger.setLevel('debug');
+// 青年女声
+const tts1 = new XfyunTTS({ voice_name: 'xiaoyan' }, handlers);
 
-// 禁用日志输出
-recognizer.logger.setLevel('error');
+// 青年男声
+const tts2 = new XfyunTTS({ voice_name: 'aisxiaofeng' }, handlers);
 
-// 获取原始 Logger 实例进行自定义
-import { Logger, LogLevel } from 'xfyun-sdk';
-const log = new Logger(LogLevel.DEBUG);
-log.debug('Custom debug message');
+// 四川话
+const tts3 = new XfyunTTS({ voice_name: 'aisjiuyuan' }, handlers);
+
+// 童声
+const tts4 = new XfyunTTS({ voice_name: 'aisxiaowawa' }, handlers);
 ```
 
 ### 指数退避重连
 
 ```javascript
 const recognizer = new XfyunASR({
-  // ...
   enableReconnect: true,
   reconnectAttempts: 5,
-  reconnectInterval: 1000,  // 基础间隔 1s，实际按 2ⁿ 倍增长，上限 30s
+  reconnectInterval: 1000,
 }, handlers);
-```
-
-### SSR 环境使用
-
-```javascript
-import { isBrowser } from 'xfyun-sdk';
-
-if (isBrowser()) {
-  const recognizer = new XfyunASR(options, handlers);
-  // ...
-}
-```
-
----
-
-## 🧩 框架集成
-
-### React 组件
-
-```tsx
-import { SpeechRecognizer } from 'xfyun-sdk';
-
-function App() {
-  return (
-    <SpeechRecognizer
-      appId="your_app_id"
-      apiKey="your_api_key"
-      apiSecret="your_api_secret"
-      language="zh_cn"
-      domain="iat"
-      accent="mandarin"
-      autoStart={false}
-      showVolume={true}
-      showStatus={true}
-      onStart={() => console.log('开始识别')}
-      onStop={() => console.log('停止识别')}
-      onResult={(text, isEnd) => console.log('结果:', text, isEnd)}
-      onError={(error) => console.error('错误:', error)}
-    />
-  );
-}
-```
-
-> 📂 完整 React 示例：[examples/react-demo](./examples/react-demo/)
-
-### Vue 3 组件
-
-```vue
-<template>
-  <SpeechRecognizer
-    :app-id="appId"
-    :api-key="apiKey"
-    :api-secret="apiSecret"
-    language="zh_cn"
-    accent="mandarin"
-    :show-volume="true"
-    :show-status="true"
-    @result="(text, isEnd) => console.log('结果:', text, isEnd)"
-    @error="(err) => console.error('错误:', err)"
-  />
-</template>
-
-<script setup lang="ts">
-import SpeechRecognizer from '@/components/SpeechRecognizer.vue';
-
-const appId = import.meta.env.VITE_XFYUN_APP_ID;
-const apiKey = import.meta.env.VITE_XFYUN_API_KEY;
-const apiSecret = import.meta.env.VITE_XFYUN_API_SECRET;
-</script>
-```
-
-> 📂 完整 Vue 示例：[examples/vue-demo/](./examples/vue-demo/)（规划中）
-
-### 原生 HTML 示例
-
-> 📂 完整 HTML 示例：[examples/html/](./examples/html/)
-
----
-
-## 🎯 最佳实践
-
-### ✅ 推荐做法
-
-```javascript
-// 1. 使用环境变量管理密钥
-const options = {
-  appId: import.meta.env.VITE_XFYUN_APP_ID,
-  apiKey: import.meta.env.VITE_XFYUN_API_KEY,
-  apiSecret: import.meta.env.VITE_XFYUN_API_SECRET,
-};
-
-// 2. 组件卸载时务必销毁
-onUnmounted(() => recognizer.destroy()); // Vue
-useEffect(() => { return () => recognizer.destroy(); }, []); // React
-
-// 3. 捕获错误并上报
-onError: (error) => {
-  console.error(error);
-  reportError(error);  // 上报到监控系统
-};
-
-// 4. Vue 中使用 onUnmounted 确保清理
-import { onUnmounted } from 'vue';
-onUnmounted(() => {
-  recognizer?.destroy();
-});
-```
-
-### ❌ 避免做法
-
-```javascript
-// ❌ 不要硬编码密钥
-const options = {
-  appId: '1234567',  // 危险！
-  apiKey: 'abc123',
-  apiSecret: 'secret',
-};
-
-// ❌ 不要忽略 destroy
-const recognizer = new XfyunASR(options, handlers);
-recognizer.start();
-// 组件卸载时没有 destroy → 麦克风持续占用，内存泄漏
-
-// ❌ 不要在 setup 外部创建 recognizer（Vue SFC）
-// 错误：在 script setup 顶层创建，组件卸载时无法精准清理
-const recognizer = new XfyunASR(options, handlers); // ❌
 ```
 
 ---
@@ -812,61 +567,81 @@ const recognizer = new XfyunASR(options, handlers); // ❌
 
 ### Q: 麦克风权限被拒绝？
 
-浏览器需要用户主动授权麦克风权限。建议在用户交互（如点击按钮）后调用 `.start()`，避免自动播放策略拦截。
-
-```javascript
-const btn = document.getElementById('start-btn');
-btn.addEventListener('click', () => {
-  // 用户点击后再调用，权限申请成功率更高
-  recognizer.start();
-});
-```
+在用户交互（点击按钮）后调用 `.start()`，避免浏览器自动播放策略拦截。
 
 ### Q: 识别结果为空？
 
-1. 检查控制台错误日志（`logLevel: 'debug'`）
-2. 确认 `appId` / `apiKey` / `apiSecret` 完全正确
-3. 检查网络代理是否拦截了 WebSocket 请求
-4. 确认讯飞应用已开通「语音听写」服务
-5. 尝试在 **HTTPS** 或 **localhost** 环境下运行
+1. 检查控制台日志（`logLevel: 'debug'`）
+2. 确认 appId / apiKey / apiSecret 正确
+3. 检查网络代理是否拦截 WebSocket
+4. 确认讯飞应用已开通对应服务
+5. 在 HTTPS 或 localhost 环境下测试
+
+### Q: TTS 音频如何播放？
+
+```javascript
+synthesizer.onAudioData = async (audioData) => {
+  const blob = new Blob([audioData], { type: synthesizer.getMimeType() });
+  const url = URL.createObjectURL(blob);
+  const audio = new Audio(url);
+  await audio.play();
+};
+```
 
 ### Q: React/Vue 组件内存泄漏？
 
-**React：**
-
 ```tsx
+// React
 useEffect(() => {
   const recognizer = new XfyunASR(options, handlers);
-  return () => recognizer.destroy(); // ✅ 正确
+  return () => recognizer.destroy();
 }, []);
 ```
 
-**Vue 3：**
-
 ```typescript
+// Vue 3
 import { onUnmounted } from 'vue';
-
-onUnmounted(() => {
-  recognizer?.destroy(); // ✅ 正确
-});
+onUnmounted(() => recognizer?.destroy());
 ```
-
-### Q: CORS 跨域错误？
-
-讯飞 WebSocket API 可能需要配置 CORS 白名单。请在讯飞控制台「应用管理」中添加你的前端域名。
 
 ---
 
 ## 📄 许可证
 
-本项目基于 [MIT License](./LICENSE) 开源，包含科大讯飞 [语音识别 API](https://www.xfyun.cn/) 的接口封装。
+本项目基于 [MIT License](./LICENSE) 开源。
 
 ---
 
-## 🙏 致谢
+## 📝 更新日志
 
-- [科大讯飞开放平台](https://www.xfyun.cn/) — 语音识别 API
-- [Agions](https://github.com/Agions) — 核心开发
+### v1.2.3 (2024-xx-xx)
+
+**新增功能：**
+- ✅ TTS 语音合成支持（`XfyunTTS`）
+- ✅ 翻译功能支持（`XfyunTranslator`）
+- ✅ 语音翻译（边说边译）模式
+- ✅ 文本翻译静态方法 `translateText()`
+- ✅ 多种 TTS 音色（40+ 发音人）
+- ✅ TTS 流式音频数据回调
+- ✅ 支持 mp3/wav/pcm 音频格式
+- ✅ 16 种语言翻译支持
+- ✅ 离线 ASR 类型定义
+- ✅ 声纹识别基础类型定义
+
+**文档更新：**
+- 📚 新增 `docs/api/TTS.md` API 文档
+- 📚 新增 `docs/api/Translator.md` API 文档
+- 📚 更新 `docs/api/ASR.md` 文档
+- 📚 新增 E2E 测试和性能测试
+
+**测试覆盖：**
+- ✅ 新增 `tests/synthesizer.test.ts`
+- ✅ 新增 `tests/translator.test.ts`
+- ✅ 新增 `tests/e2e/asr.test.ts`
+- ✅ 新增 `tests/e2e/tts.test.ts`
+- ✅ 新增 `tests/performance/memory.test.ts`
+- ✅ 新增 `tests/performance/latency.test.ts`
+- ✅ 更新 CI 工作流，添加 E2E 和性能测试 job
 
 ---
 

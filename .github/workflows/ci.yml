@@ -32,17 +32,105 @@ jobs:
       - name: Run type check
         run: pnpm run type-check
 
-      - name: Run tests
+      - name: Run unit tests
         run: pnpm run test:run
 
       - name: Run tests with coverage
         run: pnpm run test:coverage
         if: github.event_name == 'push'
 
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run E2E tests
+        run: pnpm run test:run --config vitest.config.ts --include 'tests/e2e/**/*.{test,spec}.{ts,tsx}'
+        timeout-minutes: 10
+
+  performance:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Performance tests
+        run: pnpm run test:run --config vitest.config.ts --include 'tests/performance/**/*.{test,spec}.{ts,tsx}'
+        timeout-minutes: 10
+
+  coverage-check:
+    name: Coverage Check
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run coverage
+        run: pnpm run test:coverage
+
+      - name: Check coverage threshold
+        run: |
+          COVERAGE=$(cat coverage/coverage-summary.json | grep -o '"total":{"lines":{"pct":[0-9.]*' | grep -o '[0-9.]*$' || echo "0")
+          echo "Line coverage: $COVERAGE%"
+          if (( $(echo "$COVERAGE < 80" | bc -l) )); then
+            echo "Coverage $COVERAGE% is below threshold 80%"
+            exit 1
+          fi
+          echo "Coverage check passed!"
+
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test, e2e, performance]
 
     steps:
       - uses: actions/checkout@v4
