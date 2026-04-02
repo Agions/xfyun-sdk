@@ -522,6 +522,19 @@ export function useSpeechSynthesizer(options: Partial<XfyunTTSOptions>) {
 | `stopped` | ⏹️ 已停止 |
 | `error` | ❌ 错误 |
 
+### XfyunASR 公开方法
+
+| 方法 | 返回值 | 说明 |
+|------|--------|------|
+| `start()` | `Promise<void>` | 开始语音识别 |
+| `stop()` | `void` | 停止语音识别 |
+| `destroy()` | `void` | 销毁实例，释放所有资源 |
+| `getState()` | `RecognizerState` | 获取当前状态 |
+| `getResult()` | `string` | 获取识别结果文本 |
+| `clearResult()` | `void` | 清空识别结果 |
+| `isRecording()` | `boolean` | 是否正在录音（新增） |
+| `isDestroyed()` | `boolean` | 实例是否已销毁（新增） |
+
 ---
 
 ## 🔧 高级配置
@@ -614,34 +627,44 @@ onUnmounted(() => recognizer?.destroy());
 
 ## 📝 更新日志
 
-### v1.2.3 (2024-xx-xx)
+### v1.3.1 (2026-04-02)
 
-**新增功能：**
-- ✅ TTS 语音合成支持（`XfyunTTS`）
-- ✅ 翻译功能支持（`XfyunTranslator`）
-- ✅ 语音翻译（边说边译）模式
-- ✅ 文本翻译静态方法 `translateText()`
-- ✅ 多种 TTS 音色（40+ 发音人）
-- ✅ TTS 流式音频数据回调
-- ✅ 支持 mp3/wav/pcm 音频格式
-- ✅ 16 种语言翻译支持
-- ✅ 离线 ASR 类型定义
-- ✅ 声纹识别基础类型定义
+**Bug 修复：**
+- 🐛 AudioContext 去掉非标准 `{sampleRate:16000}` 构造参数，兼容所有浏览器
+- 🐛 `releaseMicrophone()` 增加 `audioSource.disconnect()` / `analyser.disconnect()`，修复音频节点泄漏
+- 🐛 `sendAudioData()` 后续帧不再带冗余 business params，节省带宽
+- 🐛 `handleError()` 增加 `onStop` 回调通知，调用方可感知识别已结束
+- 🐛 `initWebSocket()` 增加 10s connecting 超时兜底（部分浏览器 WebSocket 失败不触发 onerror）
+- 🐛 `handleReconnect()` 补充 'connecting' 状态卡死的重试覆盖
 
-**文档更新：**
-- 📚 新增 `docs/api/TTS.md` API 文档
-- 📚 新增 `docs/api/Translator.md` API 文档
-- 📚 更新 `docs/api/ASR.md` 文档
+**新增：**
+- ✨ `XfyunASR.isRecording()` — 判断是否正在录音
+- ✨ `XfyunASR.isDestroyed()` — 判断实例是否已销毁
+
+**优化：**
+- ⚡️ React SpeechRecognizer cleanup 优化，避免 unmount 后触发 setState
+
+### v1.3.0 (2026-03-28)
+
+**新增：**
+- ✨ `examples/vue-demo/` 完整 Vue 3 + Vite 示例项目
+- ✨ `useSpeechRecognizer` Vue 3 组合式函数（composable）
+- ✨ `SpeechRecognizer.vue` 单文件组件（含音量条/状态徽章/动画）
+- ✨ `XfyunTTS` 语音合成支持
+- ✨ `XfyunTranslator` 翻译功能（文本翻译 + 语音翻译）
+- ✨ 多种 TTS 音色（40+ 发音人）
+- ✨ TTS 流式音频数据回调
+- ✨ 支持 mp3/wav/pcm 音频格式
+- ✨ 16 种语言翻译支持
+
+**优化：**
+- ⚡️ README 全面专业化设计（架构图、最佳实践、框架集成）
+- ⚡️ CI workflow 切换为 pnpm
+- ⚡️ 添加 npm 下载量 + CI + 覆盖率 Badge
+
+**文档：**
+- 📚 新增 `docs/api/TTS.md` / `Translator.md` API 文档
 - 📚 新增 E2E 测试和性能测试
-
-**测试覆盖：**
-- ✅ 新增 `tests/synthesizer.test.ts`
-- ✅ 新增 `tests/translator.test.ts`
-- ✅ 新增 `tests/e2e/asr.test.ts`
-- ✅ 新增 `tests/e2e/tts.test.ts`
-- ✅ 新增 `tests/performance/memory.test.ts`
-- ✅ 新增 `tests/performance/latency.test.ts`
-- ✅ 更新 CI 工作流，添加 E2E 和性能测试 job
 
 ---
 

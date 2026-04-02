@@ -94,6 +94,26 @@ public getResult(): string
 public clearResult(): void
 ```
 
+### isRecording()
+
+判断是否正在录音。
+
+```typescript
+public isRecording(): boolean
+```
+
+**返回值：** `true` 表示处于 `recording` 状态
+
+### isDestroyed()
+
+判断实例是否已销毁。
+
+```typescript
+public isDestroyed(): boolean
+```
+
+**返回值：** `true` 表示实例已调用 `destroy()`，不可再使用
+
 ## 事件
 
 ### onStart
@@ -106,7 +126,7 @@ onStart: () => void
 
 ### onStop
 
-识别停止时触发。
+识别停止时触发。**注意**：调用 `stop()` 主动停止或发生错误时都会触发此回调。
 
 ```typescript
 onStop: () => void
