@@ -1,25 +1,24 @@
 # 更新日志
 
-## [1.2.3] (2026-03-28)
-
-### 新增
-
-- ✨ `examples/vue-demo/` 完整 Vue 3 + Vite 示例项目
-- ✨ `useSpeechRecognizer` Vue 3 组合式函数（composable）
-- ✨ `SpeechRecognizer.vue` 单文件组件（含音量条/状态徽章/动画）
-
-### 优化
-
-- ⚡️ README.md 全面专业化设计（架构图、最佳实践、框架集成）
-- ⚡️ CI workflow 切换为 pnpm（`pnpm/action-setup@v4`）
-- ⚡️ 所有 workflow 添加 `cache-dependency-path` 指向 `pnpm-lock.yaml`
-- ⚡️ 添加 npm 下载量 + CI + 覆盖率 Badge
+## [1.2.3] (2026-04-02)
 
 ### 修复
 
-- 🐛 修复 `pnpm-lock.yaml` 与 `package.json` 版本不同步问题
-- 🐛 修复 CI `Setup Node.js` 因缓存 key 不稳定导致的失败
-- 🐛 修复 npm-publish / Release workflow `pnpm publish` detached HEAD 报错
+- 🐛 AudioContext 去掉非标准 `{sampleRate:16000}` 构造参数，兼容所有浏览器
+- 🐛 `releaseMicrophone()` 增加 `audioSource.disconnect()` / `analyser.disconnect()`，修复音频节点泄漏
+- 🐛 `sendAudioData()` 后续帧不再带冗余 business params，节省带宽
+- 🐛 `handleError()` 增加 `onStop` 回调通知，调用方可感知识别已结束
+- 🐛 `initWebSocket()` 增加 10s connecting 超时兜底（部分浏览器 WebSocket 失败不触发 onerror）
+- 🐛 `handleReconnect()` 补充 'connecting' 状态卡死的重试覆盖
+
+### 新增
+
+- ✨ `XfyunASR.isRecording()` — 判断是否正在录音
+- ✨ `XfyunASR.isDestroyed()` — 判断实例是否已销毁
+
+### 优化
+
+- React SpeechRecognizer cleanup 优化，避免 unmount 后触发 setState
 
 ## [1.2.1] (2026-03-27)
 
