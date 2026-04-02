@@ -193,11 +193,9 @@ const SpeechRecognizer: React.FC<SpeechRecognizerProps> = ({
     }
 
     return () => {
+      // 先标记销毁状态，阻止所有异步回调触发 setState
       isDestroyedRef.current = true;
-      const currentState = stateRef.current;
-      if (currentState === 'recording' || currentState === 'connected') {
-        recognizer.stop();
-      }
+      // 直接 destroy（destroy 不触发任何回调），不再调 stop 避免 onStop -> setState on unmounted
       recognizer.destroy();
       recognizerRef.current = null;
     };

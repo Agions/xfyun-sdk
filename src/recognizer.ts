@@ -52,6 +52,9 @@ export class XfyunASR {
   private reconnectCount: number = 0;
   private reconnectTimer: number | null = null;
   private isReconnecting: boolean = false;
+  // WebSocket connecting 超时兜底（部分浏览器不触发 onerror）
+  private connectingTimer: number | null = null;
+  private static readonly CONNECTING_TIMEOUT_MS = 10000;
   
   // 日志器
   public logger: Logger;
@@ -257,6 +260,20 @@ export class XfyunASR {
   }
 
   /**
+   * 是否正在录音中
+   */
+  public isRecording(): boolean {
+    return this.state === 'recording';
+  }
+
+  /**
+   * 实例是否已销毁
+   */
+  public isDestroyed(): boolean {
+    return this.destroyed;
+  }
+
+  /**
    * 初始化麦克风
    */
   private async initMicrophone(): Promise<void> {
@@ -274,10 +291,8 @@ export class XfyunASR {
 
       this.logger.info('成功获取麦克风权限');
 
-      // 创建音频上下文
-      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
-        sampleRate: 16000
-      });
+      // 创建音频上下文（不传 sampleRate，由浏览器自动处理采样率重采样）
+      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
 
       // 创建分析器节点
       this.analyser = this.audioContext.createAnalyser();
@@ -369,6 +384,15 @@ export class XfyunASR {
    * 释放麦克风资源
    */
   private releaseMicrophone(): void {
+    // 先断开音频节点连接，再停止轨道
+    if (this.audioSource) {
+      try { this.audioSource.disconnect(); } catch {}
+      this.audioSource = null;
+    }
+    if (this.analyser) {
+      try { this.analyser.disconnect(); } catch {}
+      this.analyser = null;
+    }
     if (this.microphoneStream) {
       this.microphoneStream.getTracks().forEach(track => track.stop());
       this.microphoneStream = null;
@@ -440,6 +464,7 @@ export class XfyunASR {
       
       // 连接建立
       this.websocket.onopen = () => {
+        this.clearReconnectTimer(); // 取消 connecting 超时
         this.logger.info('WebSocket连接成功');
         this.setState('connected');
         this.sendStartFrame();
@@ -492,6 +517,7 @@ export class XfyunASR {
       
       // 连接错误
       this.websocket.onerror = (error) => {
+        this.clearReconnectTimer(); // 取消 connecting 超时
         this.logger.error('WebSocket连接错误:', error);
         this.handleError({
           code: 10006,
@@ -513,6 +539,18 @@ export class XfyunASR {
       this.logger.error('初始化WebSocket失败:', error);
       throw new Error(`初始化WebSocket失败: ${error}`);
     }
+
+    // Connecting 超时兜底：部分浏览器 WebSocket 失败不触发 onerror
+    this.connectingTimer = window.setTimeout(() => {
+      if (this.state === 'connecting' && !this.destroyed) {
+        this.logger.warn('WebSocket connecting 超时，强制关闭并重连');
+        if (this.websocket) {
+          this.websocket.close();
+          this.websocket = null;
+        }
+        this.handleReconnect();
+      }
+    }, XfyunASR.CONNECTING_TIMEOUT_MS);
   }
 
   /**
@@ -542,7 +580,8 @@ export class XfyunASR {
     this.reconnectTimer = window.setTimeout(() => {
       this.isReconnecting = false;
 
-      if (this.state === 'error' || this.state === 'idle') {
+      // 'connecting' 卡死也算作可重试状态
+      if (this.state === 'error' || this.state === 'idle' || this.state === 'connecting') {
         this.start();
       }
     }, interval);
@@ -555,6 +594,10 @@ export class XfyunASR {
     if (this.reconnectTimer) {
       window.clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
+    }
+    if (this.connectingTimer) {
+      window.clearTimeout(this.connectingTimer);
+      this.connectingTimer = null;
     }
   }
 
@@ -616,11 +659,11 @@ export class XfyunASR {
       }
 
       try {
-        const frame: XfyunWebsocketRequest = {
+        // 后续帧只发 common + data，不带 business 减少冗余数据传输
+        const frame = {
           common: {
             app_id: this.options.appId
           },
-          business: this.buildBusinessParams(),
           data: {
             status: 1,
             format: this.options.audioFormat || 'audio/L16;rate=16000',
@@ -704,11 +747,16 @@ export class XfyunASR {
    */
   private handleError(error: XfyunError): void {
     this.setState('error');
-    
+
     if (this.handlers.onError) {
       this.handlers.onError(error);
     }
-    
+
+    // 通知停止（让调用方知道识别已结束）
+    if (this.handlers.onStop) {
+      this.handlers.onStop();
+    }
+
     this.logger.error('讯飞语音识别错误:', error);
   }
 }
