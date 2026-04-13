@@ -59,6 +59,35 @@ export function generateAuthUrl(
 }
 
 /**
+ * 音频 MIME 类型检测
+ * @description 检测浏览器支持的音频录制格式，按优先级返回第一个支持的类型
+ */
+export function detectSupportedMimeType(): string {
+  const mimeTypes = [
+    'audio/webm',
+    'audio/webm;codecs=opus',
+    'audio/ogg;codecs=opus',
+  ];
+
+  for (const type of mimeTypes) {
+    if (MediaRecorder.isTypeSupported(type)) {
+      return type;
+    }
+  }
+  // 兜底
+  return 'audio/webm';
+}
+
+/**
+ * 创建 AudioContext（兼容 webkit 前缀）
+ * @param sampleRate 可选采样率
+ */
+export function createAudioContext(sampleRate?: number): AudioContext {
+  const AudioContextClass = (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext || window.AudioContext;
+  return sampleRate ? new AudioContextClass({ sampleRate }) : new AudioContextClass();
+}
+
+/**
  * 计算音频音量
  * @param array 音频数据
  * @returns 音量值

@@ -3,7 +3,7 @@
  * @description 支持语音翻译（边说边译）和文本翻译
  */
 import { Logger } from './logger';
-import { toBase64, arrayBufferToBase64, generateAuthUrl } from './utils';
+import { toBase64, arrayBufferToBase64, generateAuthUrl, detectSupportedMimeType, createAudioContext } from './utils';
 import type {
   TranslatorType,
   SourceLanguage,
@@ -189,9 +189,7 @@ export class XfyunTranslator {
       });
 
       // 创建音频上下文
-      this.audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)({
-        sampleRate: this.options.sampleRate || 16000,
-      });
+      this.audioContext = createAudioContext(this.options.sampleRate || 16000);
 
       // 初始化 WebSocket
       const url = this.generateAuthUrl('itr');
@@ -240,23 +238,7 @@ export class XfyunTranslator {
   private initRecorder(): void {
     if (!this.microphoneStream) return;
 
-    const mimeTypes = [
-      'audio/webm',
-      'audio/webm;codecs=opus',
-      'audio/ogg;codecs=opus',
-    ];
-
-    let mimeType = '';
-    for (const type of mimeTypes) {
-      if (MediaRecorder.isTypeSupported(type)) {
-        mimeType = type;
-        break;
-      }
-    }
-
-    if (!mimeType) {
-      mimeType = 'audio/webm';
-    }
+    const mimeType = detectSupportedMimeType();
 
     this.recorder = new MediaRecorder(this.microphoneStream, {
       mimeType,
@@ -268,7 +250,7 @@ export class XfyunTranslator {
         const reader = new FileReader();
         reader.onload = () => {
           if (this.state === 'translating' && reader.result instanceof ArrayBuffer) {
-            const base64Audio = this.arrayBufferToBase64Local(reader.result);
+            const base64Audio = arrayBufferToBase64(reader.result);
             this.audioDataQueue.push(base64Audio);
             this.sendAudioData();
           }
@@ -562,13 +544,6 @@ export class XfyunTranslator {
   private generateAuthUrl(path: string): string {
     // 翻译和语音翻译使用相同的 host 和 v2 路径前缀
     return generateAuthUrl(this.options.apiKey, this.options.apiSecret, 'itr-api.xfyun.cn', `/v2/${path}`);
-  }
-
-  /**
-   * ArrayBuffer 转 Base64 - 直接使用 utils 版本
-   */
-  private arrayBufferToBase64Local(buffer: ArrayBuffer): string {
-    return arrayBufferToBase64(buffer);
   }
 
   /**

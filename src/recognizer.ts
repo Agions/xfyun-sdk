@@ -6,7 +6,7 @@ import {
   XfyunWebsocketResponse,
   XfyunError
 } from './types';
-import { generateAuthUrl, arrayBufferToBase64, parseXfyunResult, calculateVolume } from './utils';
+import { generateAuthUrl, arrayBufferToBase64, parseXfyunResult, calculateVolume, detectSupportedMimeType, createAudioContext } from './utils';
 import { LogLevel, Logger } from './logger';
 
 export { LogLevel, Logger };
@@ -292,7 +292,7 @@ export class XfyunASR {
       this.logger.info('成功获取麦克风权限');
 
       // 创建音频上下文（不传 sampleRate，由浏览器自动处理采样率重采样）
-      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      this.audioContext = createAudioContext();
 
       // 创建分析器节点
       this.analyser = this.audioContext.createAnalyser();
@@ -302,20 +302,8 @@ export class XfyunASR {
       this.audioSource = this.audioContext.createMediaStreamSource(this.microphoneStream);
       this.audioSource.connect(this.analyser);
 
-      // 检查支持的MIME类型
-      const mimeTypes = [
-        'audio/webm',
-        'audio/webm;codecs=opus',
-        'audio/ogg;codecs=opus'
-      ];
-
-      let mimeType = '';
-      for (const type of mimeTypes) {
-        if (MediaRecorder.isTypeSupported(type)) {
-          mimeType = type;
-          break;
-        }
-      }
+      // 检测支持的音频格式
+      const mimeType = detectSupportedMimeType();
 
       if (!mimeType) {
         throw new Error('浏览器不支持任何可用的音频编码格式');
