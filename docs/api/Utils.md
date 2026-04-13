@@ -10,6 +10,10 @@ import {
   calculateVolume,
   arrayBufferToBase64,
   parseXfyunResult,
+  isBrowser,
+  toBase64,
+  detectSupportedMimeType,
+  createAudioContext,
 } from 'xfyun-sdk';
 ```
 
@@ -147,3 +151,131 @@ websocket.onmessage = (event) => {
 // 不带日志
 const text = parseXfyunResult(rawResult);
 ```
+
+---
+
+### isBrowser
+
+判断当前是否在浏览器环境。
+
+```typescript
+function isBrowser(): boolean
+```
+
+**返回值：** `true` 表示浏览器环境，`false` 表示 Node.js 环境
+
+**示例：**
+
+```typescript
+import { isBrowser } from 'xfyun-sdk';
+
+if (isBrowser()) {
+  console.log('Running in browser');
+  // 使用 window 等浏览器 API
+} else {
+  console.log('Running in Node.js');
+  // 使用 Node.js API
+}
+```
+
+---
+
+### toBase64
+
+将字符串转换为 Base64 编码（浏览器/Node.js 兼容）。
+
+```typescript
+function toBase64(str: string, encoding?: 'utf-8' | 'binary'): string
+```
+
+**参数：**
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `str` | `string` | — | 待编码的字符串 |
+| `encoding` | `'utf-8' \| 'binary'` | `'utf-8'` | 字符编码 |
+
+**返回值：** Base64 编码字符串
+
+**Unicode 处理：** 自动处理 Unicode 字符（如中文），避免 `btoa` 错误。
+
+**示例：**
+
+```typescript
+import { toBase64 } from 'xfyun-sdk';
+
+// UTF-8 字符串（默认）
+const base64 = toBase64('你好');
+console.log(base64); // '5L2g5aW9'
+
+// 二进制数据
+const binaryBase64 = toBase64('binary string', 'binary');
+```
+
+---
+
+### detectSupportedMimeType
+
+检测浏览器支持的音频录制格式（MIME Type）。
+
+```typescript
+function detectSupportedMimeType(): string
+```
+
+**返回值：** 浏览器支持的音频 MIME 类型字符串
+
+**检测优先级：**
+1. `audio/webm`
+2. `audio/webm;codecs=opus`
+3. `audio/ogg;codecs=opus`
+4. 兜底：`audio/webm`
+
+**示例：**
+
+```typescript
+import { detectSupportedMimeType } from 'xfyun-sdk';
+
+const mimeType = detectSupportedMimeType();
+console.log(`Supported MIME type: ${mimeType}`);
+
+// 用于 MediaRecorder
+const mediaRecorder = new MediaRecorder(stream, {
+  mimeType: detectSupportedMimeType(),
+});
+```
+
+---
+
+### createAudioContext
+
+创建 AudioContext 实例（兼容 webkit 前缀）。
+
+```typescript
+function createAudioContext(sampleRate?: number): AudioContext
+```
+
+**参数：**
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `sampleRate` | `number` | 可选采样率（如 16000） |
+
+**返回值：** AudioContext 实例（自动兼容 `webkitAudioContext`）
+
+**浏览器兼容：** 自动检测 `AudioContext` 和 `webkitAudioContext`，优先使用标准 API。
+
+**示例：**
+
+```typescript
+import { createAudioContext } from 'xfyun-sdk';
+
+// 创建默认采样率的 AudioContext
+const audioCtx = createAudioContext();
+
+// 创建指定采样率的 AudioContext
+const audioCtx16k = createAudioContext(16000);
+
+// 用于音频处理
+const analyser = audioCtx.createAnalyser();
+```
+
