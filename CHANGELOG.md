@@ -1,5 +1,29 @@
 # 更新日志
 
+## [1.3.2] (2026-04-13)
+
+### 修复
+
+- 🐛 `generateAuthUrl` 三处重复实现 → 统一使用 `utils.ts` 公共实现
+- 🐛 `toBase64` Unicode 字符处理问题 → 使用 `encodeURIComponent` 方案修复
+- 🐛 `synthesizer.ts` `autoStart` 逻辑矛盾（空文本时仍启动）
+- 🐛 `translator.ts` 空字符串参数未校验
+
+### 优化
+
+- ⚡️ 提取 `detectSupportedMimeType()` 统一 MIME 类型检测
+- ⚡️ 提取 `createAudioContext()` 兼容 webkit 前缀
+- ⚡️ 移除未使用的 `CryptoJS` 导入
+- ⚡️ 移除 `translator.ts` 中冗余的 `arrayBufferToBase64Local` 包装器
+
+### 文档
+
+- 📝 补全所有 API 文档（ASR、TTS、Translator、Utils、Types、Logger、SpeechRecognizer）
+- 📝 新增 `docs/guide/getting-started.md` 快速开始指南
+- 📝 新增 `docs/guide/troubleshooting.md` 故障排除指南
+
+# 更新日志
+
 ## [1.3.1] (2026-04-02)
 
 ### 修复
