@@ -2,130 +2,26 @@
  * 科大讯飞 TTS 语音合成模块
  * @description 基于 WebSocket 的流式语音合成，支持多种音色、语速调节、多种音频格式
  */
-import CryptoJS from 'crypto-js';
-import { Logger, LogLevel } from './logger';
+import { Logger } from './logger';
+import { toBase64, generateAuthUrl } from './utils';
+import type {
+  TTSAudioFormat,
+  TTSVoiceName,
+  SynthesizerState,
+  TTSError,
+  TTSEventHandlers,
+  XfyunTTSOptions,
+} from './types';
 
-/**
- * TTS 音频格式
- */
-export type TTSAudioFormat = 'mp3' | 'wav' | 'pcm';
-
-/**
- * TTS 音色名称
- */
-export type TTSVoiceName =
-  | 'xiaoyan'      // 青年女声-小燕
-  | 'aisjiuxu'      // 青年女声-许久
-  | 'aisxping'      // 青年女声-小萍
-  | 'aisjinger'     // 青年女声-京儿
-  | 'aisbabyxu'     // 青年女声-小旭
-  | 'aisxiaoyuan'   // 青年女声-小媛
-  | 'aisxingchen'   // 青年女声-星辰
-  | 'aisdengdeng'   // 青年女声-叮当
-  | 'aisyaoyao'     // 青年女声-瑶瑶
-  | 'aismall'       // 青年女声-小暖
-  | 'aisduxiaoyao'  // 青年女声-杜小姚
-  | 'aisjiuxu'      // 青年女声-许久
-  | 'aisduxiaop'    // 青年女声-杜晓萍
-  | 'aispingping'   // 青年女声-平平
-  | 'aismeini'      // 青年女声-美妮
-  | 'aisxiaofeng'   // 青年男声-小峰
-  | 'aisnan'        // 青年男声-楠楠
-  | 'aisxiaosong'   // 青年男声-小松
-  | 'aisxiaoyong'   // 青年男声-小勇
-  | 'aisxiaowang'   // 青年男声-小王
-  | 'aisxiaole'     // 青年男声-小乐
-  | 'aisxiaoy'      // 青年男声-小宇
-  | 'aisxiaolin'    // 青年男声-小林
-  | 'aisxiaoming'   // 青年男声-小明
-  | 'aisxiaogang'   // 青年男声-小刚
-  | 'aisdarong'     // 中年男声-大荣
-  | 'aisnvpeach'    // 中年女声-青娇
-  | 'aisxiaoyan'    // 老年女声-小燕
-  | 'aisxiaowuma'   // 老年男声-无马
-  | 'aisxiaorong'   // 老年男声-小荣
-  | 'aischanghong'  // 老年女声-长红
-  | 'aisxiaoyaxi'   // 英文女声-雅西
-  | 'aisxiaolin'    // 英文男声-小林
-  | 'aisduck'       // 英文男声-德克
-  | 'aisjiuyuan'    // 四川话女声
-  | 'aisxiaoxian'   // 陕西话女声-小贤
-  | 'aisxiaomao'    // 东北话女声-小矛
-  | 'aisxiaoli'     // 东北话女声-小黎
-  | 'aisxiaokan'    // 河南话女声-小侃
-  | 'aisduxiaoyao'  // 湖南话女声-杜小姚
-  | 'aisxiaoning'   // 普通话男声-小宁
-  | 'aismary'       // 英中双语女声
-  | 'aisxiaowawa'   // 童声
-  | 'aisxiaoxue'    // 童声-小学
-  | 'aisxiaoyan'    // 粤语女声-小燕
-  ;
-
-/**
- * TTS 合成器状态
- */
-export type SynthesizerState = 'idle' | 'connecting' | 'connected' | 'synthesizing' | 'stopped' | 'error';
-
-/**
- * TTS 错误
- */
-export interface TTSError {
-  code: number;
-  message: string;
-  data?: unknown;
-}
-
-/**
- * TTS 事件处理函数
- */
-export interface TTSEventHandlers {
-  /** 开始合成 */
-  onStart?: () => void;
-  /** 合成结束 */
-  onEnd?: () => void;
-  /** 停止合成 */
-  onStop?: () => void;
-  /** 音频数据返回（流式） */
-  onAudioData?: (audioData: ArrayBuffer) => void;
-  /** 文本进度（当前已合成的字符数/总字符数） */
-  onProgress?: (current: number, total: number) => void;
-  /** 错误回调 */
-  onError?: (error: TTSError) => void;
-  /** 状态变化 */
-  onStateChange?: (state: SynthesizerState) => void;
-}
-
-/**
- * TTS 配置选项
- */
-export interface XfyunTTSOptions {
-  /** 讯飞应用 ID */
-  appId: string;
-  /** 讯飞 API Key */
-  apiKey: string;
-  /** 讯飞 API Secret */
-  apiSecret: string;
-  /** 发音人，默认为青年女声 */
-  voice_name?: TTSVoiceName | string;
-  /** 语速，范围 0-100，默认 50 */
-  speed?: number;
-  /** 音调，范围 0-100，默认 50 */
-  pitch?: number;
-  /** 音量，范围 0-100，默认 50 */
-  volume?: number;
-  /** 口音/方言，默认为普通话 */
-  accent?: string;
-  /** 音频格式，默认 mp3 */
-  audioFormat?: TTSAudioFormat;
-  /** 采样率，默认 16000 */
-  sampleRate?: number;
-  /** 是否自动开始合成，默认 false */
-  autoStart?: boolean;
-  /** 是否启用缓存，默认 true */
-  enableCache?: boolean;
-  /** 日志级别 */
-  logLevel?: 'debug' | 'info' | 'warn' | 'error';
-}
+// Re-export types for backwards compatibility
+export type {
+  TTSAudioFormat,
+  TTSVoiceName,
+  SynthesizerState,
+  TTSError,
+  TTSEventHandlers,
+  XfyunTTSOptions,
+};
 
 // 默认配置
 const DEFAULT_OPTIONS: Partial<XfyunTTSOptions> = {
@@ -190,7 +86,8 @@ export class XfyunTTS {
     this.logger.setLevel(this.options.logLevel || 'info');
     this.logger.info('XfyunTTS 实例创建', this.options);
 
-    if (this.options.autoStart) {
+    // autoStart 时检查是否有文本可合成
+    if (this.options.autoStart && this.currentText && this.currentText.trim().length > 0) {
       this.start(this.currentText);
     }
   }
@@ -419,7 +316,7 @@ export class XfyunTTS {
         },
         data: {
           status: 0,
-          text: Buffer.from(this.currentText, 'utf-8').toString('base64'),
+          text: toBase64(this.currentText, 'utf-8'),
         },
       };
 
@@ -433,21 +330,10 @@ export class XfyunTTS {
   }
 
   /**
-   * 生成认证 URL
+   * 生成认证 URL - 复用 utils 的统一实现
    */
   private generateAuthUrl(): string {
-    const host = 'tts-api.xfyun.cn';
-    const date = new Date().toUTCString();
-    const algorithm = 'hmac-sha256';
-
-    const signatureOrigin = `host: ${host}\ndate: ${date}\nGET /v2/tts HTTP/1.1`;
-    const signatureSha = CryptoJS.HmacSHA256(signatureOrigin, this.options.apiSecret);
-    const signature = CryptoJS.enc.Base64.stringify(signatureSha);
-
-    const authorizationOrigin = `api_key="${this.options.apiKey}", algorithm="${algorithm}", headers="host date request-line", signature="${signature}"`;
-    const authorization = Buffer.from(authorizationOrigin, 'binary').toString('base64');
-
-    return `wss://${host}/v2/tts?authorization=${encodeURIComponent(authorization)}&date=${encodeURIComponent(date)}&host=${encodeURIComponent(host)}`;
+    return generateAuthUrl(this.options.apiKey, this.options.apiSecret, 'tts-api.xfyun.cn', '/v2/tts');
   }
 
   /**

@@ -1,11 +1,28 @@
-import CryptoJS from 'crypto-js';
+import * as CryptoJS from 'crypto-js';
 import { Logger } from './logger';
 
 /**
  * 判断是否在浏览器环境
  */
-function isBrowser(): boolean {
+export function isBrowser(): boolean {
   return typeof window !== 'undefined' && typeof window.btoa === 'function';
+}
+
+/**
+ * 将字符串转换为 Base64 (浏览器/Node.js 兼容)
+ * @remarks
+ * 此函数处理 Unicode 字符，确保在不同环境下都能正确编码
+ */
+export function toBase64(str: string, encoding: 'utf-8' | 'binary' = 'utf-8'): string {
+  if (isBrowser()) {
+    // btoa 不能直接处理 Unicode 字符串，需要先转换
+    const encoded = encoding === 'utf-8'
+      ? window.btoa(window.unescape(encodeURIComponent(str)))
+      : window.atob(str);
+    return encoded;
+  }
+  // Node.js 环境
+  return Buffer.from(str, encoding).toString('base64');
 }
 
 /**
@@ -13,25 +30,29 @@ function isBrowser(): boolean {
  * @param apiKey 接口密钥
  * @param apiSecret 接口密钥对应的secret
  * @param host 请求的服务器地址
+ * @param path API 路径，默认 /v2/iat
  * @returns 带有签名的完整URL
  */
 export function generateAuthUrl(
   apiKey: string,
   apiSecret: string,
-  host: string = 'iat-api.xfyun.cn'
+  host: string = 'iat-api.xfyun.cn',
+  path: string = '/v2/iat'
 ): string {
-  const url = 'wss://' + host + '/v2/iat';
+  const url = 'wss://' + host + path;
   const date = new Date().toUTCString();
   const algorithm = 'hmac-sha256';
 
   // 生成签名
-  const signatureOrigin = `host: ${host}\ndate: ${date}\nGET /v2/iat HTTP/1.1`;
+  const signatureOrigin = `host: ${host}\ndate: ${date}\nGET ${path} HTTP/1.1`;
   const signatureSha = CryptoJS.HmacSHA256(signatureOrigin, apiSecret);
   const signature = CryptoJS.enc.Base64.stringify(signatureSha);
 
   // 生成授权字符串
   const authorizationOrigin = `api_key="${apiKey}", algorithm="${algorithm}", headers="host date request-line", signature="${signature}"`;
-  const authorization = isBrowser() ? btoa(authorizationOrigin) : Buffer.from(authorizationOrigin).toString('base64');
+  const authorization = isBrowser()
+    ? window.btoa(window.unescape(encodeURIComponent(authorizationOrigin)))
+    : Buffer.from(authorizationOrigin).toString('base64');
 
   // 拼接请求URL，确保使用encodeURIComponent进行更安全的编码
   return `${url}?authorization=${encodeURIComponent(authorization)}&date=${encodeURIComponent(date)}&host=${encodeURIComponent(host)}`;

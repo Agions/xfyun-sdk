@@ -2,135 +2,30 @@
  * 科大讯飞翻译模块
  * @description 支持语音翻译（边说边译）和文本翻译
  */
-import CryptoJS from 'crypto-js';
 import { Logger } from './logger';
+import { toBase64, arrayBufferToBase64, generateAuthUrl } from './utils';
+import type {
+  TranslatorType,
+  SourceLanguage,
+  TargetLanguage,
+  TranslatorState,
+  TranslatorError,
+  TranslationResult,
+  TranslatorEventHandlers,
+  XfyunTranslatorOptions,
+} from './types';
 
-/**
- * 翻译类型
- */
-export type TranslatorType = 'asr' | 'text';
-
-/**
- * 源语言类型
- */
-export type SourceLanguage =
-  | 'cn'    // 中文
-  | 'en'    // 英文
-  | 'ja'    // 日语
-  | 'ko'    // 韩语
-  | 'fr'    // 法语
-  | 'es'    // 西班牙语
-  | 'it'    // 意大利语
-  | 'de'    // 德语
-  | 'pt'    // 葡萄牙语
-  | 'vi'    // 越南语
-  | 'id'    // 印尼语
-  | 'ms'    // 马来西亚语
-  | 'ru'    // 俄语
-  | 'ar'    // 阿拉伯语
-  | 'hi'    // 印地语
-  | 'th'    // 泰语
-  ;
-
-/**
- * 目标语言类型
- */
-export type TargetLanguage =
-  | 'cn'    // 中文
-  | 'en'    // 英文
-  | 'ja'    // 日语
-  | 'ko'    // 韩语
-  | 'fr'    // 法语
-  | 'es'    // 西班牙语
-  | 'it'    // 意大利语
-  | 'de'    // 德语
-  | 'pt'    // 葡萄牙语
-  | 'vi'    // 越南语
-  | 'id'    // 印尼语
-  | 'ms'    // 马来西亚语
-  | 'ru'    // 俄语
-  | 'ar'    // 阿拉伯语
-  | 'hi'    // 印地语
-  | 'th'    // 泰语
-  ;
-
-/**
- * 翻译器状态
- */
-export type TranslatorState = 'idle' | 'connecting' | 'connected' | 'translating' | 'stopped' | 'error';
-
-/**
- * 翻译错误
- */
-export interface TranslatorError {
-  code: number;
-  message: string;
-  data?: unknown;
-}
-
-/**
- * 翻译结果
- */
-export interface TranslationResult {
-  /** 源语言 */
-  sourceLanguage: SourceLanguage;
-  /** 目标语言 */
-  targetLanguage: TargetLanguage;
-  /** 源文本 */
-  sourceText: string;
-  /** 翻译结果 */
-  targetText: string;
-  /** 是否为最终结果 */
-  isFinal: boolean;
-  /** 识别分数 */
-  confidence?: number;
-}
-
-/**
- * 语音翻译事件处理函数
- */
-export interface TranslatorEventHandlers {
-  /** 开始翻译 */
-  onStart?: () => void;
-  /** 翻译结束 */
-  onEnd?: () => void;
-  /** 停止翻译 */
-  onStop?: () => void;
-  /** 翻译结果返回 */
-  onResult?: (result: TranslationResult) => void;
-  /** 错误回调 */
-  onError?: (error: TranslatorError) => void;
-  /** 状态变化 */
-  onStateChange?: (state: TranslatorState) => void;
-}
-
-/**
- * 翻译器配置选项
- */
-export interface XfyunTranslatorOptions {
-  /** 讯飞应用 ID */
-  appId: string;
-  /** 讯飞 API Key */
-  apiKey: string;
-  /** 讯飞 API Secret */
-  apiSecret: string;
-  /** 翻译类型：asr=语音翻译，text=文本翻译 */
-  type?: TranslatorType;
-  /** 源语言 */
-  from?: SourceLanguage;
-  /** 目标语言 */
-  to?: TargetLanguage;
-  /** 场景（语音翻译专用） */
-  domain?: 'iner' | 'video' | 'command' | 'doc' | 'phonecall' | 'medical';
-  /** 是否自动开始，默认 false */
-  autoStart?: boolean;
-  /** VAD 超时时间（ms） */
-  vadEos?: number;
-  /** 采样率 */
-  sampleRate?: number;
-  /** 日志级别 */
-  logLevel?: 'debug' | 'info' | 'warn' | 'error';
-}
+// Re-export types for backwards compatibility
+export type {
+  TranslatorType,
+  SourceLanguage,
+  TargetLanguage,
+  TranslatorState,
+  TranslatorError,
+  TranslationResult,
+  TranslatorEventHandlers,
+  XfyunTranslatorOptions,
+};
 
 // 默认配置
 const DEFAULT_OPTIONS: Partial<XfyunTranslatorOptions> = {
@@ -373,7 +268,7 @@ export class XfyunTranslator {
         const reader = new FileReader();
         reader.onload = () => {
           if (this.state === 'translating' && reader.result instanceof ArrayBuffer) {
-            const base64Audio = this.arrayBufferToBase64(reader.result);
+            const base64Audio = this.arrayBufferToBase64Local(reader.result);
             this.audioDataQueue.push(base64Audio);
             this.sendAudioData();
           }
@@ -417,7 +312,7 @@ export class XfyunTranslator {
         data_type: 'text',
       },
       data: {
-        text: Buffer.from(text, 'utf-8').toString('base64'),
+        text: toBase64(text, 'utf-8'),
       },
     };
 
@@ -662,33 +557,18 @@ export class XfyunTranslator {
   }
 
   /**
-   * 生成认证 URL
+   * 生成认证 URL - 复用 utils 的统一实现
    */
   private generateAuthUrl(path: string): string {
-    const host = path === 'translate' ? 'itr-api.xfyun.cn' : 'itr-api.xfyun.cn';
-    const date = new Date().toUTCString();
-    const algorithm = 'hmac-sha256';
-
-    const signatureOrigin = `host: ${host}\ndate: ${date}\nGET /v2/${path} HTTP/1.1`;
-    const signatureSha = CryptoJS.HmacSHA256(signatureOrigin, this.options.apiSecret);
-    const signature = CryptoJS.enc.Base64.stringify(signatureSha);
-
-    const authorizationOrigin = `api_key="${this.options.apiKey}", algorithm="${algorithm}", headers="host date request-line", signature="${signature}"`;
-    const authorization = Buffer.from(authorizationOrigin, 'binary').toString('base64');
-
-    return `wss://${host}/v2/${path}?authorization=${encodeURIComponent(authorization)}&date=${encodeURIComponent(date)}&host=${encodeURIComponent(host)}`;
+    // 翻译和语音翻译使用相同的 host 和 v2 路径前缀
+    return generateAuthUrl(this.options.apiKey, this.options.apiSecret, 'itr-api.xfyun.cn', `/v2/${path}`);
   }
 
   /**
-   * ArrayBuffer 转 Base64
+   * ArrayBuffer 转 Base64 - 直接使用 utils 版本
    */
-  private arrayBufferToBase64(buffer: ArrayBuffer): string {
-    const bytes = new Uint8Array(buffer);
-    let binary = '';
-    for (let i = 0; i < bytes.byteLength; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
-    return Buffer.from(binary, 'binary').toString('base64');
+  private arrayBufferToBase64Local(buffer: ArrayBuffer): string {
+    return arrayBufferToBase64(buffer);
   }
 
   /**
@@ -741,6 +621,11 @@ XfyunTranslator.translateText = async function (
   text: string,
   options: XfyunTranslatorOptions
 ): Promise<TranslationResult> {
+  // 参数校验
+  if (!text || typeof text !== 'string' || text.trim().length === 0) {
+    return Promise.reject(new Error('翻译文本不能为空'));
+  }
+
   return new Promise((resolve, reject) => {
     const translator = new XfyunTranslator(
       { ...options, type: 'text' },
@@ -756,7 +641,7 @@ XfyunTranslator.translateText = async function (
       }
     );
 
-    translator.start(text);
+    translator.start(text.trim());
   });
 };
 
