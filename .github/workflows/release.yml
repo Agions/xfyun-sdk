@@ -5,6 +5,11 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release'
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -39,9 +44,37 @@ jobs:
         run: pnpm run test:run
 
       - name: Create GitHub Release
-        uses: ncipollo/release-action@v1
-        with:
-          artifacts: "dist/*"
-          draft: false
-          prerelease: false
-          token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Determine tag
+          TAG="${GITHUB_REF#refs/tags/}"
+          if [ -z "$TAG" ] || [ "$TAG" == "$GITHUB_REF" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+          fi
+          
+          if [ -z "$TAG" ]; then
+            echo "Error: No tag provided. Use workflow_dispatch with a tag input."
+            exit 1
+          fi
+          
+          echo "Creating release for tag: $TAG"
+          
+          # Create release
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --notes "Release $TAG" \
+            --repo "${{ github.repository }}"
+          
+          # Upload artifacts
+          for asset in dist/*; do
+            gh release upload "$TAG" "$asset" --repo "${{ github.repository }}"
+          done
+
+      - name: Verify Release
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          if [ -z "$TAG" ] || [ "$TAG" == "$GITHUB_REF" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+          fi
+          gh release view "$TAG" --repo "${{ github.repository }}" --json tagName,url --jq '{tag: .tag_name, url: .url}'
