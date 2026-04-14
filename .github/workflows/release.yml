@@ -39,18 +39,9 @@ jobs:
         run: pnpm run test:run
 
       - name: Create GitHub Release
-        run: |
-          TAG=${GITHUB_REF#refs/tags/}
-          gh release create "$TAG" \
-            --title "$TAG" \
-            --notes "Release $TAG" \
-            dist/*
-
-      - name: Upload release assets
-        run: |
-          TAG=${GITHUB_REF#refs/tags/}
-          for asset in dist/*; do
-            gh release upload "$TAG" "$asset" --clobber
-          done
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "dist/*"
+          draft: false
+          prerelease: false
+          token: ${{ secrets.GITHUB_TOKEN }}
