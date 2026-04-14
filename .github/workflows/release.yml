@@ -39,9 +39,18 @@ jobs:
         run: pnpm run test:run
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          draft: false
-          prerelease: false
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --notes "Release $TAG" \
+            dist/*
+
+      - name: Upload release assets
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          for asset in dist/*; do
+            gh release upload "$TAG" "$asset" --clobber
+          done
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
