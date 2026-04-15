@@ -62,9 +62,11 @@ jobs:
             --notes "Release $TAG" \
             --repo "${{ github.repository }}"
           
-          # Upload artifacts
+          # Upload artifacts (files only, skip directories)
           for asset in dist/*; do
-            gh release upload "$TAG" "$asset" --repo "${{ github.repository }}"
+            if [ -f "$asset" ]; then
+              gh release upload "$TAG" "$asset" --repo "${{ github.repository }}"
+            fi
           done
 
       - name: Verify Release
