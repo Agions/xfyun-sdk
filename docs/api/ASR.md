@@ -102,8 +102,6 @@ public clearResult(): void
 public isRecording(): boolean
 ```
 
-**返回值：** `true` 表示处于 `recording` 状态
-
 ### isDestroyed()
 
 判断实例是否已销毁。
@@ -112,79 +110,33 @@ public isRecording(): boolean
 public isDestroyed(): boolean
 ```
 
-**返回值：** `true` 表示实例已调用 `destroy()`，不可再使用
-
 ## 事件
 
-### onStart
+### ASREventHandlers
 
-识别开始时触发。
-
-```typescript
-onStart: () => void
-```
-
-### onStop
-
-识别停止时触发。**注意**：调用 `stop()` 主动停止或发生错误时都会触发此回调。
-
-```typescript
-onStop: () => void
-```
-
-### onRecognitionResult
-
-识别结果返回。
-
-```typescript
-onRecognitionResult: (text: string, isEnd: boolean) => void
-```
-
-**参数：**
-- `text`: 识别文本
-- `isEnd`: 是否为最终结果
-
-### onProcess
-
-实时音量回调。
-
-```typescript
-onProcess: (volume: number) => void
-```
-
-**参数：**
-- `volume`: 音量值，范围 0~1
-
-### onError
-
-错误回调。
-
-```typescript
-onError: (error: XfyunError) => void
-```
-
-### onStateChange
-
-状态变化回调。
-
-```typescript
-onStateChange: (state: RecognizerState) => void
-```
+| 事件 | 类型 | 说明 |
+|------|------|------|
+| `onStart` | `() => void` | 识别开始时触发 |
+| `onStop` | `() => void` | 识别停止时触发 |
+| `onRecognitionResult` | `(text: string, isEnd: boolean) => void` | 识别结果回调 |
+| `onProcess` | `(volume: number) => void` | 音量进程回调 |
+| `onError` | `(error: XfyunError) => void` | 错误回调 |
+| `onStateChange` | `(state: RecognizerState) => void` | 状态变化回调 |
 
 ## RecognizerState 状态机
 
 | 状态 | 说明 |
 |------|------|
-| `idle` | ⏸️ 初始空闲状态 |
-| `connecting` | 🔗 正在建立 WebSocket 连接 |
-| `connected` | ✅ 已连接，等待录音 |
-| `recording` | 🎙️ 正在录音 |
+| `idle` | ⏸️ 空闲状态 |
+| `connecting` | 🔗 正在连接 |
+| `connected` | ✅ 已连接 |
+| `recording` | 🎤 录音中 |
 | `stopped` | ⏹️ 已停止 |
-| `error` | ❌ 发生错误 |
+| `error` | ❌ 错误 |
 
 ## 使用示例
 
-### 原生 JavaScript
+### 基础用法
 
 ```typescript
 import { XfyunASR } from 'xfyun-sdk';
@@ -199,17 +151,16 @@ const recognizer = new XfyunASR(
     vadEos: 3000,
   },
   {
-    onStart: () => console.log('识别开始'),
-    onStop: () => console.log('识别停止'),
+    onStart: () => console.log('🟢 识别已开始'),
+    onStop: () => console.log('🔴 识别已停止'),
     onRecognitionResult: (text, isEnd) => {
-      console.log(`${isEnd ? '[最终]' : '[中间]'}: ${text}`);
+      console.log(`📝 ${isEnd ? '[最终]' : '[中间]'} ${text}`);
     },
     onProcess: (volume) => {
-      console.log(`音量: ${Math.round(volume * 100)}%`);
+      const bar = '█'.repeat(Math.round(volume * 10));
+      console.log(`🔊 ${bar}`);
     },
-    onError: (error) => {
-      console.error('错误:', error);
-    },
+    onError: (error) => console.error('❌ 错误:', error),
   }
 );
 
@@ -223,33 +174,112 @@ recognizer.stop();
 recognizer.destroy();
 ```
 
-### React Hooks
+### 自动重连
+
+```typescript
+const recognizer = new XfyunASR(
+  {
+    appId: 'your_app_id',
+    apiKey: 'your_api_key',
+    apiSecret: 'your_api_secret',
+    enableReconnect: true,
+    reconnectAttempts: 3,
+    reconnectInterval: 3000,
+  },
+  handlers
+);
+```
+
+### 热词识别
+
+```typescript
+const recognizer = new XfyunASR(
+  {
+    appId: 'your_app_id',
+    apiKey: 'your_api_key',
+    apiSecret: 'your_api_secret',
+    hotWords: ['讯飞', '语音识别', '人工智能'],
+    punctuation: true,
+  },
+  handlers
+);
+```
+
+### React Hooks 使用
 
 ```typescript
 import { useEffect, useRef, useState } from 'react';
-import { XfyunASR, XfyunASROptions, ASREventHandlers } from 'xfyun-sdk';
+import { XfyunASR, XfyunASROptions } from 'xfyun-sdk';
 
-function useSpeechRecognizer(options: Partial<XfyunASROptions>) {
+export function useSpeechRecognizer(options: XfyunASROptions) {
   const recognizerRef = useRef<XfyunASR | null>(null);
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
 
   useEffect(() => {
-    const handlers: ASREventHandlers = {
+    recognizerRef.current = new XfyunASR(options, {
       onStart: () => setIsListening(true),
       onStop: () => setIsListening(false),
       onRecognitionResult: (text, isEnd) => {
         setTranscript((prev) => (isEnd ? prev + text + '\n' : prev + text));
       },
-    };
-
-    recognizerRef.current = new XfyunASR(options as XfyunASROptions, handlers);
+    });
 
     return () => recognizerRef.current?.destroy();
-  }, []);
+  }, [options]);
 
-  const start = () => recognizerRef.current?.start();
-  const stop = () => recognizerRef.current?.stop();
+  return {
+    isListening,
+    transcript,
+    start: () => recognizerRef.current?.start(),
+    stop: () => recognizerRef.current?.stop(),
+  };
+}
+
+// 使用
+function App() {
+  const { isListening, transcript, start, stop } = useSpeechRecognizer({
+    appId: 'your_app_id',
+    apiKey: 'your_api_key',
+    apiSecret: 'your_api_secret',
+  });
+
+  return (
+    <div>
+      <button onClick={start} disabled={isListening}>开始</button>
+      <button onClick={stop} disabled={!isListening}>停止</button>
+      <div>{transcript}</div>
+    </div>
+  );
+}
+```
+
+### Vue 3 Composables 使用
+
+```typescript
+import { ref, onUnmounted } from 'vue';
+import { XfyunASR, XfyunASROptions } from 'xfyun-sdk';
+
+export function useSpeechRecognizer(options: XfyunASROptions) {
+  const recognizer = ref<XfyunASR | null>(null);
+  const isListening = ref(false);
+  const transcript = ref('');
+
+  const init = () => {
+    recognizer.value = new XfyunASR(options, {
+      onStart: () => (isListening.value = true),
+      onStop: () => (isListening.value = false),
+      onRecognitionResult: (text, isEnd) => {
+        transcript.value += isEnd ? text + '\n' : text;
+      },
+    });
+  };
+
+  const start = () => recognizer.value?.start();
+  const stop = () => recognizer.value?.stop();
+
+  init();
+  onUnmounted(() => recognizer.value?.destroy());
 
   return { isListening, transcript, start, stop };
 }
@@ -263,50 +293,18 @@ function useSpeechRecognizer(options: Partial<XfyunASROptions>) {
 | 10003 | 启动语音识别失败 |
 | 10004 | 停止语音识别失败 |
 | 10005 | 解析消息失败 |
-| 10006 | WebSocket 连接错误 |
-| 10007 | 发送音频数据失败 |
-| 10008 | 发送开始帧失败 |
 | 10009 | 录音出错 |
 
-## 离线 ASR
+## 浏览器兼容性
 
-离线识别引擎配置：
+| 浏览器 | 最低版本 |
+|--------|----------|
+| Chrome | 33+ |
+| Firefox | 25+ |
+| Safari | 7+ |
+| Edge | 12+ |
 
-```typescript
-interface OfflineASROptions {
-  engine?: 'smsys';
-  language?: 'zh_cn' | 'en_us';
-  domain?: 'iat' | 'search' | 'commands';
-  sampleRate?: 8000 | 16000;
-  nbest?: number;
-  wbest?: number;
-}
-```
-
-> ⚠️ 离线 ASR 需要额外的离线引擎授权，请在讯飞控制台申请。
-
-## 声纹识别基础接口
-
-声纹识别（Speaker Verification）配置：
-
-```typescript
-interface SpeakerVerifyOptions {
-  appId: string;
-  apiKey: string;
-  apiSecret: string;
-  scene: 'verify' | 'identify';
-  engine_type: '21360' | '21361';
-  user_id?: string;
-  audioFormat?: 'wav' | 'pcm' | 'opus';
-  sampleRate?: number;
-}
-
-interface SpeakerVerifyResult {
-  success: boolean;
-  score: number;
-  user_id?: string;
-  message?: string;
-}
-```
-
-> ⚠️ 声纹识别功能需要单独的授权和集成。
+需要浏览器支持：
+- WebSocket
+- MediaDevices API
+- AudioContext / webkitAudioContext
