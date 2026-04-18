@@ -147,6 +147,55 @@ public getMimeType(): string
 
 **返回值示例：** `'audio/mpeg'` (mp3), `'audio/wav'` (wav), `'audio/pcm'` (pcm)
 
+### exportAudio()
+
+导出累积的完整音频数据为 Blob 对象。
+
+```typescript
+public exportAudio(): Blob | null
+```
+
+**返回值：** 返回音频数据的 Blob 对象，如果没有音频数据则返回 `null`
+
+**示例：**
+
+```typescript
+synthesizer.onEnd = () => {
+  const blob = synthesizer.exportAudio();
+  if (blob) {
+    console.log('音频大小:', blob.size, 'bytes');
+    console.log('音频类型:', blob.type);
+  }
+};
+```
+
+### downloadAudio(filename?)
+
+触发浏览器下载合成的音频文件。
+
+```typescript
+public downloadAudio(filename?: string): void
+```
+
+**参数：**
+- `filename`: 下载文件名（不含扩展名），默认值为 `'synthesis'`
+
+**示例：**
+
+```typescript
+synthesizer.onEnd = () => {
+  // 下载为 "hello.mp3"
+  synthesizer.downloadAudio('hello');
+};
+
+// 或者使用默认文件名 "synthesis.mp3"
+synthesizer.onEnd = () => {
+  synthesizer.downloadAudio();
+};
+```
+
+> ⚠️ 注意：`downloadAudio()` 仅在浏览器环境中可用。
+
 ## 事件
 
 ### onStart
@@ -297,32 +346,24 @@ synthesizer.onAudioData = async (audioData) => {
 import { XfyunTTS } from 'xfyun-sdk';
 
 const synthesizer = new XfyunTTS(options, handlers);
-const audioChunks: ArrayBuffer[] = [];
 
-synthesizer.onAudioData = (audioData) => {
-  audioChunks.push(audioData);
+// 方式1: 使用 downloadAudio 方法（推荐）
+synthesizer.onEnd = () => {
+  synthesizer.downloadAudio('my-audio');
 };
 
+// 方式2: 使用 exportAudio 获取 Blob
 synthesizer.onEnd = () => {
-  // 合并所有音频块
-  const totalLength = audioChunks.reduce((sum, chunk) => sum + chunk.byteLength, 0);
-  const combined = new ArrayBuffer(totalLength);
-  const combinedArray = new Uint8Array(combined);
-  
-  let offset = 0;
-  for (const chunk of audioChunks) {
-    combinedArray.set(new Uint8Array(chunk), offset);
-    offset += chunk.byteLength;
+  const blob = synthesizer.exportAudio();
+  if (blob) {
+    // 自定义处理
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'output.mp3';
+    a.click();
+    URL.revokeObjectURL(url);
   }
-  
-  // 创建 Blob 并下载
-  const blob = new Blob([combined], { type: 'audio/mpeg' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'output.mp3';
-  a.click();
-  URL.revokeObjectURL(url);
 };
 
 synthesizer.start('这是一段要保存的语音。');
