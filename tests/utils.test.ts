@@ -4,6 +4,10 @@ import {
   arrayBufferToBase64,
   parseXfyunResult,
   generateAuthUrl,
+  isBrowser,
+  toBase64,
+  detectSupportedMimeType,
+  createAudioContext,
 } from '../src/utils';
 
 describe('utils', () => {
@@ -121,25 +125,56 @@ describe('utils', () => {
     });
   });
 
-  describe('generateAuthUrl', () => {
-    it('should generate valid websocket URL', () => {
-      const url = generateAuthUrl(
-        'test-api-key',
-        'test-api-secret',
-        'iat-api.xfyun.cn'
-      );
+describe('generateAuthUrl', () => {
+  it('should generate valid websocket URL', () => {
+    const url = generateAuthUrl(
+      'test-api-key',
+      'test-api-secret',
+      'iat-api.xfyun.cn'
+    );
 
-      expect(url).toContain('wss://');
-      expect(url).toContain('iat-api.xfyun.cn');
-      expect(url).toContain('authorization=');
-      expect(url).toContain('date=');
-      expect(url).toContain('host=');
-    });
-
-    it('should use default host when not provided', () => {
-      const url = generateAuthUrl('test-api-key', 'test-api-secret');
-
-      expect(url).toContain('iat-api.xfyun.cn');
-    });
+    expect(url).toContain('wss://');
+    expect(url).toContain('iat-api.xfyun.cn');
+    expect(url).toContain('authorization=');
+    expect(url).toContain('date=');
+    expect(url).toContain('host=');
   });
+
+  it('should use default host when not provided', () => {
+    const url = generateAuthUrl('test-api-key', 'test-api-secret');
+
+    expect(url).toContain('iat-api.xfyun.cn');
+  });
+
+  it('should use custom host and path', () => {
+    const url = generateAuthUrl('test-api-key', 'test-api-secret', 'tts-api.xfyun.cn', '/v2/tts');
+
+    expect(url).toContain('tts-api.xfyun.cn');
+    expect(url).toContain('/v2/tts');
+  });
+});
+
+describe('isBrowser', () => {
+  it('should be a function', () => {
+    expect(typeof isBrowser).toBe('function');
+  });
+});
+
+describe('toBase64', () => {
+  it('should be a function', () => {
+    expect(typeof toBase64).toBe('function');
+  });
+});
+
+describe('detectSupportedMimeType', () => {
+  it('should be a function', () => {
+    expect(typeof detectSupportedMimeType).toBe('function');
+  });
+});
+
+describe('createAudioContext', () => {
+  it('should be a function', () => {
+    expect(typeof createAudioContext).toBe('function');
+  });
+});
 });
