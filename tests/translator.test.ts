@@ -224,3 +224,65 @@ describe('XfyunTranslator getState', () => {
     translator.destroy();
   });
 });
+
+describe('XfyunTranslator logger', () => {
+  it('should have logger property', () => {
+    const translator = new XfyunTranslator({
+      appId: 'test',
+      apiKey: 'test',
+      apiSecret: 'test',
+    });
+
+    expect(translator.logger).toBeDefined();
+    translator.destroy();
+  });
+});
+
+describe('XfyunTranslator multiple instances', () => {
+  it('should allow multiple instances', () => {
+    const translator1 = new XfyunTranslator({
+      appId: 'test',
+      apiKey: 'test',
+      apiSecret: 'test',
+    });
+
+    const translator2 = new XfyunTranslator({
+      appId: 'test2',
+      apiKey: 'test2',
+      apiSecret: 'test2',
+    });
+
+    expect(translator1.getState()).toBe('idle');
+    expect(translator2.getState()).toBe('idle');
+
+    translator1.destroy();
+    translator2.destroy();
+  });
+});
+
+describe('XfyunTranslator error handling', () => {
+  it('should handle start after destroy', async () => {
+    const translator = new XfyunTranslator({
+      appId: 'test',
+      apiKey: 'test',
+      apiSecret: 'test',
+    });
+
+    translator.destroy();
+    // Should not throw, just return early
+    await translator.start('test');
+    translator.destroy();
+  });
+
+  it('should handle stop when already stopped', () => {
+    const translator = new XfyunTranslator({
+      appId: 'test',
+      apiKey: 'test',
+      apiSecret: 'test',
+    });
+
+    translator.stop();
+    translator.stop(); // Should not throw
+    translator.destroy();
+  });
+});

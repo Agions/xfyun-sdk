@@ -265,3 +265,140 @@ describe('XfyunASR stop', () => {
     asr.destroy();
   });
 });
+
+describe('XfyunASR isRecording', () => {
+  it('should return false when idle', () => {
+    const asr = new XfyunASR({
+      appId: 'test',
+      apiKey: 'test',
+      apiSecret: 'test',
+    });
+
+    expect(asr.isRecording()).toBe(false);
+    asr.destroy();
+  });
+});
+
+describe('XfyunASR isDestroyed', () => {
+  it('should return false initially', () => {
+    const asr = new XfyunASR({
+      appId: 'test',
+      apiKey: 'test',
+      apiSecret: 'test',
+    });
+
+    expect(asr.isDestroyed()).toBe(false);
+    asr.destroy();
+  });
+
+  it('should return true after destroy', () => {
+    const asr = new XfyunASR({
+      appId: 'test',
+      apiKey: 'test',
+      apiSecret: 'test',
+    });
+
+    asr.destroy();
+    expect(asr.isDestroyed()).toBe(true);
+  });
+});
+
+describe('XfyunASR autoStart', () => {
+  it('should accept autoStart option without error', () => {
+    const asr = new XfyunASR({
+      appId: 'test',
+      apiKey: 'test',
+      apiSecret: 'test',
+      autoStart: false, // Set to false to avoid actual start
+    });
+
+    expect(asr).toBeDefined();
+    asr.destroy();
+  });
+});
+
+describe('XfyunASR error handling', () => {
+  let asr: XfyunASR;
+
+  beforeEach(() => {
+    // Mock getUserMedia
+    Object.defineProperty(navigator, 'mediaDevices', {
+      writable: true,
+      value: {
+        getUserMedia: vi.fn().mockResolvedValue({
+          getTracks: () => [{ stop: vi.fn() }],
+        }),
+      },
+    });
+  });
+
+  it('should handle start after destroy', async () => {
+    const asr = new XfyunASR({
+      appId: 'test',
+      apiKey: 'test',
+      apiSecret: 'test',
+    });
+
+    asr.destroy();
+    // Should not throw, just return early
+    await asr.start();
+    asr.destroy();
+  });
+
+  it('should handle stop when already stopped', () => {
+    const asr = new XfyunASR({
+      appId: 'test',
+      apiKey: 'test',
+      apiSecret: 'test',
+    });
+
+    asr.stop();
+    asr.stop(); // Should not throw
+    asr.destroy();
+  });
+});
+
+describe('XfyunASR logger', () => {
+  it('should have logger property', () => {
+    const asr = new XfyunASR({
+      appId: 'test',
+      apiKey: 'test',
+      apiSecret: 'test',
+    });
+
+    expect(asr.logger).toBeDefined();
+    expect(asr.logger).toBeInstanceOf(Logger);
+    asr.destroy();
+  });
+
+  it('should log at correct level', () => {
+    const logger = new Logger('[Test]');
+    logger.setLevel('debug');
+    logger.debug('debug test');
+    logger.info('info test');
+    logger.warn('warn test');
+    logger.error('error test');
+  });
+});
+
+describe('XfyunASR multiple instances', () => {
+  it('should allow multiple instances', () => {
+    const asr1 = new XfyunASR({
+      appId: 'test',
+      apiKey: 'test',
+      apiSecret: 'test',
+    });
+
+    const asr2 = new XfyunASR({
+      appId: 'test2',
+      apiKey: 'test2',
+      apiSecret: 'test2',
+    });
+
+    expect(asr1.getState()).toBe('idle');
+    expect(asr2.getState()).toBe('idle');
+
+    asr1.destroy();
+    asr2.destroy();
+  });
+});
