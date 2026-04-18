@@ -59,10 +59,15 @@ export function generateAuthUrl(
 }
 
 /**
- * 音频 MIME 类型检测
- * @description 检测浏览器支持的音频录制格式，按优先级返回第一个支持的类型
+ * Detect supported audio MIME type
+ * @description Check browser-supported audio recording formats, return first supported type
  */
 export function detectSupportedMimeType(): string {
+  // Check browser environment
+  if (typeof MediaRecorder === 'undefined') {
+    return 'audio/webm'; // Fallback
+  }
+
   const mimeTypes = [
     'audio/webm',
     'audio/webm;codecs=opus',
@@ -74,7 +79,7 @@ export function detectSupportedMimeType(): string {
       return type;
     }
   }
-  // 兜底
+  // Fallback
   return 'audio/webm';
 }
 
@@ -101,22 +106,20 @@ export function calculateVolume(array: Float32Array): number {
 }
 
 /**
- * 将ArrayBuffer转换为Base64
- * @param buffer ArrayBuffer数据
- * @returns Base64字符串
+ * Convert ArrayBuffer to Base64 string
+ * @param buffer - ArrayBuffer data
+ * @returns Base64 string
  */
 export function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
-  let binary = '';
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-
+  
   if (isBrowser()) {
+    // Use String.fromCharCode.apply for better performance in browser
+    const binary = String.fromCharCode.apply(null, Array.from(bytes));
     return window.btoa(binary);
   }
-  // Node.js 环境
-  return Buffer.from(binary, 'binary').toString('base64');
+  // Node.js environment
+  return Buffer.from(bytes).toString('base64');
 }
 
 /**

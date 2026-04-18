@@ -23,7 +23,7 @@ export type {
   XfyunTTSOptions,
 };
 
-// 默认配置
+// Default options
 const DEFAULT_OPTIONS: Partial<XfyunTTSOptions> = {
   voice_name: 'xiaoyan',
   speed: 50,
@@ -32,7 +32,6 @@ const DEFAULT_OPTIONS: Partial<XfyunTTSOptions> = {
   accent: 'accent=mandarin',
   audioFormat: 'mp3',
   sampleRate: 16000,
-  autoStart: false,
   enableCache: true,
   logLevel: 'info',
 };
@@ -66,7 +65,7 @@ export class XfyunTTS {
   private currentText: string = '';
   private textIndex: number = 0;
 
-  /** 日志器 */
+  /** Logger instance */
   public logger: Logger;
 
   /**
@@ -85,11 +84,6 @@ export class XfyunTTS {
     this.logger = new Logger('[XfyunTTS]');
     this.logger.setLevel(this.options.logLevel || 'info');
     this.logger.info('XfyunTTS 实例创建', this.options);
-
-    // autoStart 时检查是否有文本可合成
-    if (this.options.autoStart && this.currentText && this.currentText.trim().length > 0) {
-      this.start(this.currentText);
-    }
   }
 
   /**
@@ -191,6 +185,54 @@ export class XfyunTTS {
   }
 
   /**
+   * Export audio blob
+   * @returns Audio Blob object, or null if no audio data
+   */
+  public exportAudio(): Blob | null {
+    const mimeType = this.getMimeType();
+    const audioData = this.getAudioData();
+    if (!audioData) {
+      return null;
+    }
+    return new Blob([audioData], { type: mimeType });
+  }
+
+  /**
+   * Download audio file
+   * @param filename - Name of the file to download
+   */
+  public downloadAudio(filename: string = 'synthesis'): void {
+    // Check browser environment
+    if (typeof document === 'undefined' || typeof URL === 'undefined') {
+      this.logger.warn('downloadAudio is only available in browser environment');
+      return;
+    }
+
+    const blob = this.exportAudio();
+    if (!blob) {
+      this.logger.warn('No audio data to download');
+      return;
+    }
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename + this.getFileExtension();
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  /**
+   * Get file extension based on audio format
+   */
+  private getFileExtension(): string {
+    const format = this.options.audioFormat || 'mp3';
+    return '.' + format;
+  }
+
+  /**
    * 获取 MIME 类型
    */
   public getMimeType(): string {
@@ -220,9 +262,9 @@ export class XfyunTTS {
         this.handleMessage(event.data);
       };
 
-      this.websocket.onerror = (error) => {
-        this.logger.error('TTS WebSocket 错误:', error);
-        this.handleError({ code: 20002, message: 'WebSocket 连接错误', data: error });
+      this.websocket.onerror = (_error) => {
+        this.logger.error('TTS WebSocket 错误:', _error);
+        this.handleError({ code: 20002, message: 'WebSocket 连接错误', data: _error });
       };
 
       this.websocket.onclose = (event) => {

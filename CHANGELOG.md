@@ -1,5 +1,17 @@
 # 更新日志
 
+## [1.3.3] (2026-04-18)
+
+### 新增
+
+- ✨ `XfyunTTS.exportAudio()` — 导出音频为 Blob 对象
+- ✨ `XfyunTTS.downloadAudio()` — 一键下载音频文件到本地
+- ✨ `XfyunTTS.getFileExtension()` — 获取文件扩展名（内部方法）
+
+### 测试
+
+- ✅ 新增 exportAudio 和 downloadAudio 单元测试
+
 ## [1.3.2] (2026-04-13)
 
 ### 修复

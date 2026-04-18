@@ -199,3 +199,60 @@ describe('SynthesizerState', () => {
     expect(states).toHaveLength(6);
   });
 });
+
+describe('exportAudio', () => {
+  it('should return null when no audio data', () => {
+    const tts = new XfyunTTS({
+      appId: 'test',
+      apiKey: 'test',
+      apiSecret: 'test',
+    });
+    expect(tts.exportAudio()).toBeNull();
+  });
+
+  it('should return Blob when audio data exists', () => {
+    const tts = new XfyunTTS({
+      appId: 'test',
+      apiKey: 'test',
+      apiSecret: 'test',
+    });
+    (tts as any).audioChunks = [new ArrayBuffer(4), new ArrayBuffer(4)];
+    const blob = tts.exportAudio();
+    expect(blob).toBeInstanceOf(Blob);
+    expect(blob?.size).toBe(8);
+  });
+});
+
+describe('downloadAudio', () => {
+  it('should not throw when no audio data', () => {
+    const tts = new XfyunTTS({
+      appId: 'test',
+      apiKey: 'test',
+      apiSecret: 'test',
+    });
+    expect(() => tts.downloadAudio()).not.toThrow();
+  });
+
+  it('should trigger download when audio data exists', () => {
+    const tts = new XfyunTTS({
+      appId: 'test',
+      apiKey: 'test',
+      apiSecret: 'test',
+    });
+    (tts as any).audioChunks = [new ArrayBuffer(4)];
+    const mockDocument = {
+      createElement: vi.fn(() => ({ href: '', download: '', click: vi.fn(), remove: vi.fn() })),
+      body: { appendChild: vi.fn(), removeChild: vi.fn() },
+    } as any;
+    (global as any).document = mockDocument;
+    (global as any).URL = { createObjectURL: vi.fn(() => 'blob:url'), revokeObjectURL: vi.fn() };
+
+    tts.downloadAudio('test_audio');
+
+    expect(mockDocument.createElement).toHaveBeenCalledWith('a');
+    expect(mockDocument.body.appendChild).toHaveBeenCalled();
+    expect(mockDocument.body.removeChild).toHaveBeenCalled();
+    (global as any).URL = undefined;
+    (global as any).document = undefined;
+  });
+});
