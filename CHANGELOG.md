@@ -11,6 +11,11 @@
 ### 测试
 
 - ✅ 新增 exportAudio 和 downloadAudio 单元测试
+- ✅ 增加 recognizer 和 translator 测试用例（67 → 81 tests）
+
+### 文档
+
+- 📝 更新 TTS API 文档，添加 exportAudio/downloadAudio 使用说明
 
 ## [1.3.2] (2026-04-13)
 
