@@ -164,3 +164,63 @@ describe('XfyunTranslator.translateText', () => {
     expect(typeof XfyunTranslator.translateText).toBe('function');
   });
 });
+
+describe('XfyunTranslator Options', () => {
+  it('should accept custom from/to options', () => {
+    const translator = new XfyunTranslator({
+      appId: 'test',
+      apiKey: 'test',
+      apiSecret: 'test',
+      from: 'en',
+      to: 'cn',
+    });
+    expect(translator).toBeDefined();
+    translator.destroy();
+  });
+
+  it('should accept custom domain option', () => {
+    const translator = new XfyunTranslator({
+      appId: 'test',
+      apiKey: 'test',
+      apiSecret: 'test',
+      domain: 'iner',
+    });
+    expect(translator).toBeDefined();
+    translator.destroy();
+  });
+
+  it('should accept custom vadEos option', () => {
+    const translator = new XfyunTranslator({
+      appId: 'test',
+      apiKey: 'test',
+      apiSecret: 'test',
+      vadEos: 5000,
+    });
+    expect(translator).toBeDefined();
+    translator.destroy();
+  });
+
+  it('should accept custom logLevel option', () => {
+    const translator = new XfyunTranslator({
+      appId: 'test',
+      apiKey: 'test',
+      apiSecret: 'test',
+      logLevel: 'debug',
+    });
+    expect(translator).toBeDefined();
+    translator.destroy();
+  });
+});
+
+describe('XfyunTranslator getState', () => {
+  it('should have getState method', () => {
+    const translator = new XfyunTranslator({
+      appId: 'test',
+      apiKey: 'test',
+      apiSecret: 'test',
+    });
+
+    expect(typeof translator.getState).toBe('function');
+    translator.destroy();
+  });
+});

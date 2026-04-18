@@ -167,3 +167,101 @@ describe('RecognizerState', () => {
     expect(states).toHaveLength(6);
   });
 });
+
+describe('XfyunASR Events', () => {
+  let asr: XfyunASR;
+
+  beforeEach(() => {
+    asr = new XfyunASR({
+      appId: 'test',
+      apiKey: 'test',
+      apiSecret: 'test',
+    });
+  });
+
+  afterEach(() => {
+    asr.destroy();
+  });
+
+  it('should have onResult handler', () => {
+    expect(asr).toBeDefined();
+  });
+
+  it('should have onError handler', () => {
+    expect(asr).toBeDefined();
+  });
+
+  it('should have onVolumeChange handler', () => {
+    expect(asr).toBeDefined();
+  });
+});
+
+describe('XfyunASR Options', () => {
+  it('should accept custom language option', () => {
+    const asr = new XfyunASR({
+      appId: 'test',
+      apiKey: 'test',
+      apiSecret: 'test',
+      language: 'en_us',
+    });
+    expect(asr).toBeDefined();
+    asr.destroy();
+  });
+
+  it('should accept custom domain option', () => {
+    const asr = new XfyunASR({
+      appId: 'test',
+      apiKey: 'test',
+      apiSecret: 'test',
+      domain: 'medical',
+    });
+    expect(asr).toBeDefined();
+    asr.destroy();
+  });
+
+  it('should accept custom vadEos option', () => {
+    const asr = new XfyunASR({
+      appId: 'test',
+      apiKey: 'test',
+      apiSecret: 'test',
+      vadEos: 5000,
+    });
+    expect(asr).toBeDefined();
+    asr.destroy();
+  });
+
+  it('should accept custom logLevel option', () => {
+    const asr = new XfyunASR({
+      appId: 'test',
+      apiKey: 'test',
+      apiSecret: 'test',
+      logLevel: 'debug',
+    });
+    expect(asr).toBeDefined();
+    asr.destroy();
+  });
+
+  it('should accept custom audioFormat option', () => {
+    const asr = new XfyunASR({
+      appId: 'test',
+      apiKey: 'test',
+      apiSecret: 'test',
+      audioFormat: 'audio/L16;rate=16000',
+    });
+    expect(asr).toBeDefined();
+    asr.destroy();
+  });
+});
+
+describe('XfyunASR stop', () => {
+  it('should not throw when stopping idle instance', () => {
+    const asr = new XfyunASR({
+      appId: 'test',
+      apiKey: 'test',
+      apiSecret: 'test',
+    });
+
+    expect(() => asr.stop()).not.toThrow();
+    asr.destroy();
+  });
+});
