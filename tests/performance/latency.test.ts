@@ -155,44 +155,150 @@ describe('Latency Tests', () => {
     });
   });
 
-  describe('Message Processing', () => {
-    it('should process ASR result messages efficiently', () => {
-      const resultHandler = vi.fn();
+  // Close Latency Tests describe
+});
 
-      const asr = new XfyunASR(
-        {
-          appId: 'test',
-          apiKey: 'test',
-          apiSecret: 'test',
-        },
-        {
-          onRecognitionResult: resultHandler,
-        }
-      );
+describe('Message Processing', () => {
+  it('should process ASR result messages efficiently', () => {
+    const resultHandler = vi.fn();
 
-      // Test that instance was created successfully
-      expect(asr.getState()).toBeDefined();
+    const asr = new XfyunASR(
+      {
+        appId: 'test',
+        apiKey: 'test',
+        apiSecret: 'test',
+      },
+      {
+        onRecognitionResult: resultHandler,
+      }
+    );
+
+    // Test that instance was created successfully
+    expect(asr.getState()).toBeDefined();
+    asr.destroy();
+  });
+
+  it('should process TTS audio data efficiently', () => {
+    const audioHandler = vi.fn();
+
+    const tts = new XfyunTTS(
+      {
+        appId: 'test',
+        apiKey: 'test',
+        apiSecret: 'test',
+      },
+      {
+        onAudioData: audioHandler,
+      }
+    );
+
+    // Test that instance was created successfully
+    expect(tts.getState()).toBeDefined();
+    expect(tts.getMimeType()).toBe('audio/mpeg');
+    tts.destroy();
+  });
+});
+
+describe('Concurrent Operations', () => {
+  it('should handle multiple ASR instances concurrently', () => {
+    const instances: XfyunASR[] = [];
+    
+    // Create 10 concurrent instances
+    for (let i = 0; i < 10; i++) {
+      instances.push(new XfyunASR({
+        appId: `test-${i}`,
+        apiKey: 'test',
+        apiSecret: 'test',
+      }));
+    }
+
+    // All instances should be independent
+    instances.forEach((asr, index) => {
+      expect(asr.getState()).toBe('idle');
+      expect(asr.getResult()).toBe('');
       asr.destroy();
     });
+  });
 
-    it('should process TTS audio data efficiently', () => {
-      const audioHandler = vi.fn();
+  it('should handle multiple TTS instances concurrently', () => {
+    const instances: XfyunTTS[] = [];
+    
+    // Create 10 concurrent instances
+    for (let i = 0; i < 10; i++) {
+      instances.push(new XfyunTTS({
+        appId: `test-${i}`,
+        apiKey: 'test',
+        apiSecret: 'test',
+      }));
+    }
 
-      const tts = new XfyunTTS(
-        {
-          appId: 'test',
-          apiKey: 'test',
-          apiSecret: 'test',
-        },
-        {
-          onAudioData: audioHandler,
-        }
-      );
-
-      // Test that instance was created successfully
-      expect(tts.getState()).toBeDefined();
-      expect(tts.getMimeType()).toBe('audio/mpeg');
+    // All instances should be independent
+    instances.forEach((tts, index) => {
+      expect(tts.getState()).toBe('idle');
       tts.destroy();
     });
+  });
+});
+
+describe('Edge Cases', () => {
+  it('should handle empty text for TTS', () => {
+    const tts = new XfyunTTS({
+      appId: 'test',
+      apiKey: 'test',
+      apiSecret: 'test',
+    });
+
+    // Empty text should trigger error handler or stay in idle
+    tts.start('');
+    // State could be idle (rejected) or connecting (attempted)
+    expect(['idle', 'connecting', 'error']).toContain(tts.getState());
+    tts.destroy();
+  });
+
+  it('should handle very long text for TTS', () => {
+    const tts = new XfyunTTS({
+      appId: 'test',
+      apiKey: 'test',
+      apiSecret: 'test',
+    });
+
+    // Very long text (1000 characters)
+    const longText = '测试'.repeat(500);
+    tts.start(longText);
+    expect(tts.getState()).toBe('connecting');
+    tts.destroy();
+  });
+
+  it('should handle special characters in TTS text', () => {
+    const tts = new XfyunTTS({
+      appId: 'test',
+      apiKey: 'test',
+      apiSecret: 'test',
+    });
+
+    // Special characters
+    const specialText = 'Hello World! 你好世界！🎉 @#$%^&*()';
+    tts.start(specialText);
+    expect(tts.getState()).toBe('connecting');
+    tts.destroy();
+  });
+
+  it('should handle rapid state changes', () => {
+    const asr = new XfyunASR({
+      appId: 'test',
+      apiKey: 'test',
+      apiSecret: 'test',
+    });
+
+    // Rapid state changes
+    asr.start();
+    asr.stop();
+    asr.start();
+    asr.stop();
+    asr.start();
+    asr.stop();
+
+    expect(asr.getState()).toBe('stopped');
+    asr.destroy();
   });
 });
