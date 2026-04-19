@@ -627,22 +627,19 @@ onUnmounted(() => recognizer?.destroy());
 
 ## 📝 更新日志
 
-### v1.3.1 (2026-04-02)
-
-**Bug 修复：**
-- 🐛 AudioContext 去掉非标准 `{sampleRate:16000}` 构造参数，兼容所有浏览器
-- 🐛 `releaseMicrophone()` 增加 `audioSource.disconnect()` / `analyser.disconnect()`，修复音频节点泄漏
-- 🐛 `sendAudioData()` 后续帧不再带冗余 business params，节省带宽
-- 🐛 `handleError()` 增加 `onStop` 回调通知，调用方可感知识别已结束
-- 🐛 `initWebSocket()` 增加 10s connecting 超时兜底（部分浏览器 WebSocket 失败不触发 onerror）
-- 🐛 `handleReconnect()` 补充 'connecting' 状态卡死的重试覆盖
+### v1.3.2 (2026-04-19)
 
 **新增：**
-- ✨ `XfyunASR.isRecording()` — 判断是否正在录音
-- ✨ `XfyunASR.isDestroyed()` — 判断实例是否已销毁
+- ✨ `SpeechSynthesizer` React 组件 - 完整的语音合成 UI 组件
+- ✨ `useTranslator` Vue 3 组合式函数 - 翻译功能封装
+- ✨ 支持 React 18.x 和 Vue 3.x 完整示例
+
+**修复：**
+- 🐛 修复 SpeechSynthesizer TypeScript 类型错误
+- 🐛 完善 Translator Vue composable 类型定义
 
 **优化：**
-- ⚡️ React SpeechRecognizer cleanup 优化，避免 unmount 后触发 setState
+- ⚡️ 构建产物通过 TypeScript 严格模式检查
 
 ### v1.3.0 (2026-03-28)
 
