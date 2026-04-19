@@ -58,19 +58,20 @@ export function generateAuthUrl(
   return `${url}?authorization=${encodeURIComponent(authorization)}&date=${encodeURIComponent(date)}&host=${encodeURIComponent(host)}`;
 }
 
-/**
- * Detect supported audio MIME type
- * @description Check browser-supported audio recording formats, return first supported type
- */
 export function detectSupportedMimeType(): string {
   // Check browser environment
   if (typeof MediaRecorder === 'undefined') {
-    return 'audio/webm'; // Fallback
+    return 'audio/webm'; // Fallback for Node.js and other environments
+  }
+
+  // Check if MediaRecorder.isTypeSupported is available
+  if (typeof MediaRecorder.isTypeSupported !== 'function') {
+    return 'audio/webm'; // Fallback when method not available
   }
 
   const mimeTypes = [
     'audio/webm',
-    'audio/webm;codecs=opus',
+    'audio/webm;codecs=opus', 
     'audio/ogg;codecs=opus',
   ];
 
@@ -106,7 +107,7 @@ export function calculateVolume(array: Float32Array): number {
 }
 
 /**
- * Convert ArrayBuffer to Base64 string
+ * Convert ArrayBuffer to Base64 string (handles large buffers)
  * @param buffer - ArrayBuffer data
  * @returns Base64 string
  */
@@ -114,8 +115,13 @@ export function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   
   if (isBrowser()) {
-    // Use String.fromCharCode.apply for better performance in browser
-    const binary = String.fromCharCode.apply(null, Array.from(bytes));
+    // Use chunked approach to avoid stack overflow with large audio data
+    let binary = '';
+    const chunkSize = 8192;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      const chunk = bytes.slice(i, Math.min(i + chunkSize, bytes.length));
+      binary += String.fromCharCode.apply(null, Array.from(chunk));
+    }
     return window.btoa(binary);
   }
   // Node.js environment

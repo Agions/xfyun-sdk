@@ -64,6 +64,10 @@ export class XfyunTTS {
   private destroyed: boolean = false;
   private currentText: string = '';
   private textIndex: number = 0;
+  
+  // WebSocket connecting 超时兜底
+  private connectingTimer: number | null = null;
+  private static readonly CONNECTING_TIMEOUT_MS = 10000;
 
   /** Logger instance */
   public logger: Logger;
@@ -142,6 +146,7 @@ export class XfyunTTS {
   public destroy(): void {
     this.destroyed = true;
     this.clearWebSocketCloseTimer();
+    this.clearConnectingTimer();
 
     if (this.websocket) {
       this.websocket.close();
@@ -252,7 +257,23 @@ export class XfyunTTS {
 
       this.websocket = new WebSocket(url);
 
+      // Connecting 超时兜底
+      this.connectingTimer = window.setTimeout(() => {
+        if (this.state === 'connecting' && !this.destroyed) {
+          this.logger.warn('TTS WebSocket connecting 超时，强制关闭');
+          if (this.websocket) {
+            this.websocket.close();
+            this.websocket = null;
+          }
+          this.handleError({ 
+            code: 20005, 
+            message: 'WebSocket 连接超时',
+          });
+        }
+      }, XfyunTTS.CONNECTING_TIMEOUT_MS);
+
       this.websocket.onopen = () => {
+        this.clearConnectingTimer();
         this.logger.info('TTS WebSocket 连接成功');
         this.setState('connected');
         this.sendStartFrame();
@@ -263,11 +284,13 @@ export class XfyunTTS {
       };
 
       this.websocket.onerror = (_error) => {
+        this.clearConnectingTimer();
         this.logger.error('TTS WebSocket 错误:', _error);
         this.handleError({ code: 20002, message: 'WebSocket 连接错误', data: _error });
       };
 
       this.websocket.onclose = (event) => {
+        this.clearConnectingTimer();
         this.logger.info('TTS WebSocket 连接关闭:', event.code, event.reason);
 
         if (this.state === 'synthesizing') {
@@ -409,6 +432,16 @@ export class XfyunTTS {
     if (this.websocketCloseTimer) {
       window.clearTimeout(this.websocketCloseTimer);
       this.websocketCloseTimer = null;
+    }
+  }
+  
+  /**
+   * 清除连接超时定时器
+   */
+  private clearConnectingTimer(): void {
+    if (this.connectingTimer) {
+      window.clearTimeout(this.connectingTimer);
+      this.connectingTimer = null;
     }
   }
 }

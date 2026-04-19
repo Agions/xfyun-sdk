@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { XfyunTTS, SynthesizerState } from '../synthesizer';
-import type { XfyunTTSOptions, TTSAudioFormat, TTSVoiceName, TTSError } from '../types';
+import type { TTSAudioFormat, TTSVoiceName, TTSError } from '../types';
 
 // 组件的属性类型
 export interface SpeechSynthesizerProps {

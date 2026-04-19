@@ -14,6 +14,10 @@ export { Logger, LogLevel } from './logger';
 // React 组件
 export { default as SpeechRecognizer } from './components/SpeechRecognizer';
 export type { SpeechRecognizerProps } from './components/SpeechRecognizer';
+export { default as SpeechSynthesizer } from './components/SpeechSynthesizer';
+export type { SpeechSynthesizerProps } from './components/SpeechSynthesizer';
+export { default as Translator } from './components/Translator';
+export type { TranslatorProps } from './components/Translator';
 
 // ==================== ASR 类型 ====================
 export type {

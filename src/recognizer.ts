@@ -211,6 +211,12 @@ export class XfyunASR {
   public destroy(): void {
     this.destroyed = true;
     this.clearReconnectTimer();
+    
+    // 清理 connectingTimer
+    if (this.connectingTimer) {
+      window.clearTimeout(this.connectingTimer);
+      this.connectingTimer = null;
+    }
 
     // 立即关闭 websocket
     if (this.websocketCloseTimer) {
