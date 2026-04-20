@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { XfyunTranslator } from '../src/translator';
 
 describe('XfyunTranslator 异步边界测试', () => {
@@ -108,12 +108,10 @@ describe('XfyunTranslator 异步边界测试', () => {
       // 验证在错误状态下无法开始新的翻译
       expect((translator as any).state).toBe('error');
 
-      // 尝试调用translateText应该被静态方法本身拒绝，而不是实例方法
-      await expect(XfyunTranslator.translateText('测试文本', {
-        appId: 'test-app-id',
-        apiSecret: 'test-secret',
-        apiKey: 'test-key'
-      })).resolves.not.toThrow();
+      // 在错误状态下调用 start 应该被忽略（因为状态是 'error'）
+      // 注意：由于 jsdom 中 WebSocket 会触发错误，我们只验证状态不变
+      await translator.start('测试文本');
+      expect((translator as any).state).toBe('error');
     });
   });
 

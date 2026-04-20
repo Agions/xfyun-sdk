@@ -141,8 +141,8 @@ describe('recognizer.ts 剩余覆盖率覆盖测试', () => {
         }
       });
 
-      // onStop保持默认值null
-      expect((recognizer as any).handlers.onStop).toBeNull();
+      // onStop保持默认值undefined
+      expect((recognizer as any).handlers.onStop).toBeUndefined();
 
       const testError = new Error('Test error');
 

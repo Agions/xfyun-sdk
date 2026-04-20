@@ -75,7 +75,7 @@ export class XfyunASR {
 
     this.options = { ...DEFAULT_OPTIONS, ...options };
     this.handlers = handlers;
-    
+
     // 初始化日志器
     this.logger = new Logger('[XfyunASR]');
     this.logger.setLevel(this.options.logLevel || 'info');
@@ -85,6 +85,14 @@ export class XfyunASR {
     if (this.options.autoStart) {
       this.start();
     }
+  }
+
+  /**
+   * 设置事件处理程序
+   * @param handlers 新的事件处理程序
+   */
+  public setHandlers(handlers: ASREventHandlers): void {
+    this.handlers = { ...this.handlers, ...handlers };
   }
 
   /**
