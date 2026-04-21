@@ -70,8 +70,8 @@ describe('Latency Tests', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
-    // 确保所有 timer 被清除，防止测试结束后 timer 回调访问已销毁的 jsdom
-    vi.runAllTimers();
+    // 清除所有 pending timers，防止测试结束后 timer 回调访问已销毁的 jsdom
+    vi.clearAllTimers();
     vi.useRealTimers();
   });
 
