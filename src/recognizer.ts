@@ -800,8 +800,12 @@ export class XfyunASR {
         };
 
         if (!this.safeSend(JSON.stringify(frame))) {
-          // 发送失败，将数据放回队列
+          // 发送失败，将数据放回队列并触发错误
           this.audioDataQueue.unshift(audioData);
+          this.handleError({
+            code: 10007,
+            message: '发送音频数据失败: WebSocket 未就绪或发送失败'
+          });
           break;
         }
 
