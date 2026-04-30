@@ -73,6 +73,19 @@ export class XfyunTTS {
   public logger: Logger;
 
   /**
+   * 状态转换规则映射
+   * 定义了每个状态可以合法转换到的下一个状态
+   */
+  private static readonly STATE_TRANSITIONS: Record<SynthesizerState, SynthesizerState[]> = {
+    'idle': ['connecting'],
+    'connecting': ['connected', 'stopped', 'error'],
+    'connected': ['synthesizing', 'stopped', 'error'],
+    'synthesizing': ['stopped', 'error'],
+    'stopped': ['idle', 'connecting'],
+    'error': ['idle', 'connecting']
+  };
+
+  /**
    * 创建 TTS 合成器实例
    * @param options 配置选项
    * @param handlers 事件处理程序
@@ -128,10 +141,7 @@ export class XfyunTTS {
     this.clearWebSocketCloseTimer();
     this.setState('stopped');
 
-    if (this.websocket) {
-      this.websocket.close();
-      this.websocket = null;
-    }
+    this.safeCloseWebSocket();
 
     if (this.handlers.onStop) {
       this.handlers.onStop();
@@ -148,10 +158,7 @@ export class XfyunTTS {
     this.clearWebSocketCloseTimer();
     this.clearConnectingTimer();
 
-    if (this.websocket) {
-      this.websocket.close();
-      this.websocket = null;
-    }
+    this.safeCloseWebSocket();
 
     this.audioChunks = [];
     this.currentText = '';
@@ -166,6 +173,60 @@ export class XfyunTTS {
    */
   public getState(): SynthesizerState {
     return this.state;
+  }
+
+  /**
+   * 确保 WebSocket 已初始化
+   * @throws 如果 WebSocket 未初始化则抛出错误
+   */
+  private ensureWebSocket(): WebSocket {
+    if (!this.websocket) {
+      this.logger.error('WebSocket 未初始化');
+      throw new Error('WebSocket 未初始化');
+    }
+    return this.websocket;
+  }
+
+  /**
+   * 安全地发送 WebSocket 消息
+   * @param data 要发送的数据
+   * @returns 发送是否成功
+   */
+  private safeSend(data: string): boolean {
+    try {
+      const ws = this.ensureWebSocket();
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(data);
+        this.logger.debug('WebSocket 发送数据成功');
+        return true;
+      } else {
+        const stateMap: Record<number, string> = {
+          0: 'CONNECTING',
+          1: 'OPEN',
+          2: 'CLOSING',
+          3: 'CLOSED'
+        };
+        this.logger.warn(`WebSocket 未就绪，当前状态: ${stateMap[ws.readyState]}`);
+        return false;
+      }
+    } catch (error) {
+      this.logger.error('WebSocket 发送数据失败:', error);
+      return false;
+    }
+  }
+
+  /**
+   * 安全地关闭 WebSocket 连接
+   */
+  private safeCloseWebSocket(): void {
+    if (this.websocket) {
+      if (this.websocket.readyState === WebSocket.OPEN || 
+          this.websocket.readyState === WebSocket.CONNECTING) {
+        this.websocket.close(1000, '正常关闭');
+      }
+      this.websocket = null;
+      this.logger.debug('WebSocket 已安全关闭');
+    }
   }
 
   /**
@@ -207,6 +268,17 @@ export class XfyunTTS {
    * @param filename - Name of the file to download
    */
   public downloadAudio(filename: string = 'synthesis'): void {
+    // 参数验证
+    if (!filename || typeof filename !== 'string') {
+      throw new TypeError('filename 必须是字符串');
+    }
+    if (filename.trim().length === 0) {
+      throw new Error('filename 不能为空');
+    }
+    if (filename.includes('/') || filename.includes('\\') || filename.includes('\x00')) {
+      throw new Error('filename 包含非法字符');
+    }
+
     // Check browser environment
     if (typeof document === 'undefined' || typeof URL === 'undefined') {
       this.logger.warn('downloadAudio is only available in browser environment');
@@ -257,55 +329,84 @@ export class XfyunTTS {
 
       this.websocket = new WebSocket(url);
 
-      // Connecting 超时兜底
-      this.connectingTimer = window.setTimeout(() => {
-        if (this.state === 'connecting' && !this.destroyed) {
-          this.logger.warn('TTS WebSocket connecting 超时，强制关闭');
-          if (this.websocket) {
-            this.websocket.close();
-            this.websocket = null;
-          }
-          this.handleError({ 
-            code: 20005, 
-            message: 'WebSocket 连接超时',
-          });
-        }
-      }, XfyunTTS.CONNECTING_TIMEOUT_MS);
-
-      this.websocket.onopen = () => {
-        this.clearConnectingTimer();
-        this.logger.info('TTS WebSocket 连接成功');
-        this.setState('connected');
-        this.sendStartFrame();
-      };
-
-      this.websocket.onmessage = (event) => {
-        this.handleMessage(event.data);
-      };
-
-      this.websocket.onerror = (_error) => {
-        this.clearConnectingTimer();
-        this.logger.error('TTS WebSocket 错误:', _error);
-        this.handleError({ code: 20002, message: 'WebSocket 连接错误', data: _error });
-      };
-
-      this.websocket.onclose = (event) => {
-        this.clearConnectingTimer();
-        this.logger.info('TTS WebSocket 连接关闭:', event.code, event.reason);
-
-        if (this.state === 'synthesizing') {
-          this.setState('stopped');
-          if (this.handlers.onEnd) {
-            this.handlers.onEnd();
-          }
-        }
-
-        this.websocket = null;
-      };
+      // 设置WebSocket事件处理器和超时检测
+      this.setupTTSWebSocketHandlers();
+      this.setupConnectingTimeoutForTTS();
     } catch (error) {
       this.logger.error('初始化 TTS WebSocket 失败:', error);
       this.handleError({ code: 20003, message: '初始化 WebSocket 失败', data: error });
     }
+  }
+
+  /**
+   * 设置 TTS WebSocket 所有事件处理器
+   */
+  private setupTTSWebSocketHandlers(): void {
+    if (!this.websocket) return;
+
+    this.websocket.onopen = this.handleTTSWebSocketOpen.bind(this);
+    this.websocket.onmessage = this.handleTTSWebSocketMessage.bind(this);
+    this.websocket.onerror = this.handleTTSWebSocketError.bind(this);
+    this.websocket.onclose = this.handleTTSWebSocketClose.bind(this);
+  }
+
+  /**
+   * 处理 TTS WebSocket 连接打开事件
+   */
+  private handleTTSWebSocketOpen(): void {
+    this.clearConnectingTimer();
+    this.logger.info('TTS WebSocket 连接成功');
+    this.setState('connected');
+    this.sendStartFrame();
+  }
+
+  /**
+   * 处理 TTS WebSocket 消息事件
+   */
+  private handleTTSWebSocketMessage(event: MessageEvent): void {
+    this.handleMessage(event.data);
+  }
+
+  /**
+   * 处理 TTS WebSocket 错误事件
+   */
+  private handleTTSWebSocketError(error: Event): void {
+    this.clearConnectingTimer();
+    this.logger.error('TTS WebSocket 错误:', error);
+    this.handleError({ code: 20002, message: 'WebSocket 连接错误', data: error });
+  }
+
+  /**
+   * 处理 TTS WebSocket 关闭事件
+   */
+  private handleTTSWebSocketClose(event: CloseEvent): void {
+    this.clearConnectingTimer();
+    this.logger.info('TTS WebSocket 连接关闭:', event.code, event.reason);
+
+    if (this.state === 'synthesizing') {
+      this.setState('stopped');
+      if (this.handlers.onEnd) {
+        this.handlers.onEnd();
+      }
+    }
+
+    this.websocket = null;
+  }
+
+  /**
+   * 设置 TTS Connecting 超时检测
+   */
+  private setupConnectingTimeoutForTTS(): void {
+    this.connectingTimer = window.setTimeout(() => {
+      if (this.state === 'connecting' && !this.destroyed) {
+        this.logger.warn('TTS WebSocket connecting 超时，强制关闭');
+        this.safeCloseWebSocket();
+        this.handleError({
+          code: 20005,
+          message: 'WebSocket 连接超时',
+        });
+      }
+    }, XfyunTTS.CONNECTING_TIMEOUT_MS);
   }
 
   /**
@@ -349,8 +450,8 @@ export class XfyunTTS {
    * 发送开始帧
    */
   private sendStartFrame(): void {
-    if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
-      this.logger.error('WebSocket 未连接，无法发送开始帧');
+    if (this.destroyed) {
+      this.logger.warn('实例已销毁，无法发送开始帧');
       return;
     }
 
@@ -386,7 +487,9 @@ export class XfyunTTS {
       };
 
       this.logger.debug('发送 TTS 开始帧');
-      this.websocket.send(JSON.stringify(frame));
+      if (!this.safeSend(JSON.stringify(frame))) {
+        throw new Error('WebSocket 发送失败');
+      }
       this.setState('synthesizing');
     } catch (error) {
       this.logger.error('发送 TTS 开始帧失败:', error);
@@ -403,13 +506,25 @@ export class XfyunTTS {
 
   /**
    * 设置状态
+   * @param state 新状态
    */
   private setState(state: SynthesizerState): void {
+    // 检查状态转换是否合法
+    const validTransitions = XfyunTTS.STATE_TRANSITIONS[this.state] || [];
+    if (!validTransitions.includes(state)) {
+      this.logger.warn(
+        `⚠️ 非法状态转换: ${this.state} -> ${state}`,
+        `合法转换: [${validTransitions.join(', ')}]`
+      );
+    }
+
     this.state = state;
 
     if (this.handlers.onStateChange) {
       this.handlers.onStateChange(state);
     }
+
+    this.logger.debug(`状态变更: ${this.state}`);
   }
 
   /**

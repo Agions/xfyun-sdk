@@ -89,6 +89,19 @@ export class XfyunTranslator {
   public logger: Logger;
 
   /**
+   * 状态转换规则映射
+   * 定义了每个状态可以合法转换到的下一个状态
+   */
+  private static readonly STATE_TRANSITIONS: Record<TranslatorState, TranslatorState[]> = {
+    'idle': ['connecting'],
+    'connecting': ['connected', 'stopped', 'error'],
+    'connected': ['translating', 'stopped', 'error'],
+    'translating': ['stopped', 'error'],
+    'stopped': ['idle', 'connecting'],
+    'error': ['idle', 'connecting']
+  };
+
+  /**
    * 创建翻译器实例
    * @param options 配置选项
    * @param handlers 事件处理程序
@@ -111,6 +124,27 @@ export class XfyunTranslator {
    * @param handlers 新的事件处理程序
    */
   public setHandlers(handlers: TranslatorEventHandlers): void {
+    if (!handlers || typeof handlers !== 'object') {
+      throw new TypeError('handlers 必须是有效的对象');
+    }
+
+    // 验证各个回调函数的类型
+    if (handlers.onStart && typeof handlers.onStart !== 'function') {
+      throw new TypeError('handlers.onStart 必须是函数');
+    }
+    if (handlers.onEnd && typeof handlers.onEnd !== 'function') {
+      throw new TypeError('handlers.onEnd 必须是函数');
+    }
+    if (handlers.onStop && typeof handlers.onStop !== 'function') {
+      throw new TypeError('handlers.onStop 必须是函数');
+    }
+    if (handlers.onResult && typeof handlers.onResult !== 'function') {
+      throw new TypeError('handlers.onResult 必须是函数');
+    }
+    if (handlers.onError && typeof handlers.onError !== 'function') {
+      throw new TypeError('handlers.onError 必须是函数');
+    }
+
     this.handlers = { ...this.handlers, ...handlers };
   }
 
@@ -324,7 +358,10 @@ export class XfyunTranslator {
       },
     };
 
-    this.websocket.send(JSON.stringify(frame));
+    if (!this.safeSend(JSON.stringify(frame))) {
+      this.logger.warn('发送文本翻译帧失败');
+      return;
+    }
     this.setState('translating');
   }
 
@@ -332,10 +369,6 @@ export class XfyunTranslator {
    * 发送语音翻译开始帧
    */
   private sendStartFrame(): void {
-    if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
-      return;
-    }
-
     const from = LANGUAGE_CODE_MAP[this.options.from || 'cn'] || 'cn';
     const to = LANGUAGE_CODE_MAP[this.options.to || 'en'] || 'en';
 
@@ -359,14 +392,16 @@ export class XfyunTranslator {
       },
     };
 
-    this.websocket.send(JSON.stringify(frame));
+    if (!this.safeSend(JSON.stringify(frame))) {
+      this.logger.warn('发送语音翻译开始帧失败');
+    }
   }
 
   /**
    * 发送音频数据
    */
   private sendAudioData(): void {
-    if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN || this.state !== 'translating') {
+    if (this.state !== 'translating') {
       return;
     }
 
@@ -392,7 +427,11 @@ export class XfyunTranslator {
         },
       };
 
-      this.websocket.send(JSON.stringify(frame));
+      if (!this.safeSend(JSON.stringify(frame))) {
+        // 发送失败，将数据放回队列
+        this.audioDataQueue.unshift(audioData);
+        break;
+      }
     }
   }
 
@@ -481,6 +520,25 @@ export class XfyunTranslator {
 
     this.clearWebSocketCloseTimer();
 
+    // 清理所有录音资源
+    this.cleanupRecordingResources();
+
+    this.setState('stopped');
+
+    // 处理 WebSocket 关闭
+    this.handleWebSocketOnStop();
+
+    if (this.handlers.onStop) {
+      this.handlers.onStop();
+    }
+
+    this.logger.info('翻译已停止');
+  }
+
+  /**
+   * 清理所有录音相关资源
+   */
+  private cleanupRecordingResources(): void {
     if (this.recorder) {
       this.stopRecorder();
     }
@@ -493,42 +551,60 @@ export class XfyunTranslator {
       this.audioContext.close();
       this.audioContext = null;
     }
+  }
 
-    this.setState('stopped');
+  /**
+   * 停止时处理 WebSocket 关闭逻辑
+   */
+  private handleWebSocketOnStop(): void {
+    if (!this.websocket) return;
 
-    if (this.websocket) {
-      // 发送结束帧
-      if (this.options.type === 'asr') {
-        const endFrame = {
-          common: { app_id: this.options.appId },
-          business: {
-            from: LANGUAGE_CODE_MAP[this.options.from || 'cn'] || 'cn',
-            to: LANGUAGE_CODE_MAP[this.options.to || 'en'] || 'en',
-            data_type: 'audio',
-          },
-          data: {
-            status: 2,
-            format: 'audio/L16;rate=16000',
-            encoding: 'raw',
-            audio: '',
-          },
-        };
-        this.websocket.send(JSON.stringify(endFrame));
-      }
-
-      this.websocketCloseTimer = window.setTimeout(() => {
-        if (this.websocket) {
-          this.websocket.close();
-          this.websocket = null;
-        }
-      }, 500);
+    // 发送结束帧
+    if (this.options.type === 'asr') {
+      this.sendTranslationEndFrame();
     }
 
-    if (this.handlers.onStop) {
-      this.handlers.onStop();
+    // 延迟关闭 WebSocket
+    this.scheduleWebSocketClose(500);
+  }
+
+  /**
+   * 发送翻译结束帧
+   */
+  private sendTranslationEndFrame(): void {
+    const endFrame = {
+      common: { app_id: this.options.appId },
+      business: {
+        from: LANGUAGE_CODE_MAP[this.options.from || 'cn'] || 'cn',
+        to: LANGUAGE_CODE_MAP[this.options.to || 'en'] || 'en',
+        data_type: 'audio',
+      },
+      data: {
+        status: 2,
+        format: 'audio/L16;rate=16000',
+        encoding: 'raw',
+        audio: '',
+      },
+    };
+
+    if (!this.safeSend(JSON.stringify(endFrame))) {
+      this.logger.warn('发送翻译结束帧失败');
+    }
+  }
+
+  /**
+   * 安排 WebSocket 延迟关闭
+   * @param delay 延迟时间（毫秒）
+   */
+  private scheduleWebSocketClose(delay: number): void {
+    if (this.websocketCloseTimer) {
+      window.clearTimeout(this.websocketCloseTimer);
     }
 
-    this.logger.info('翻译已停止');
+    this.websocketCloseTimer = window.setTimeout(() => {
+      this.safeCloseWebSocket();
+      this.websocketCloseTimer = null;
+    }, delay);
   }
 
   /**
@@ -552,10 +628,7 @@ export class XfyunTranslator {
       this.audioContext = null;
     }
 
-    if (this.websocket) {
-      this.websocket.close();
-      this.websocket = null;
-    }
+    this.safeCloseWebSocket();
 
     this.audioDataQueue = [];
     this.setState('stopped');
@@ -568,6 +641,60 @@ export class XfyunTranslator {
    */
   public getState(): TranslatorState {
     return this.state;
+  }
+
+  /**
+   * 确保 WebSocket 已初始化
+   * @throws 如果 WebSocket 未初始化则抛出错误
+   */
+  private ensureWebSocket(): WebSocket {
+    if (!this.websocket) {
+      this.logger.error('WebSocket 未初始化');
+      throw new Error('WebSocket 未初始化');
+    }
+    return this.websocket;
+  }
+
+  /**
+   * 安全地发送 WebSocket 消息
+   * @param data 要发送的数据
+   * @returns 发送是否成功
+   */
+  private safeSend(data: string | ArrayBuffer): boolean {
+    try {
+      const ws = this.ensureWebSocket();
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(data);
+        this.logger.debug('WebSocket 发送数据成功');
+        return true;
+      } else {
+        const stateMap: Record<number, string> = {
+          0: 'CONNECTING',
+          1: 'OPEN',
+          2: 'CLOSING',
+          3: 'CLOSED'
+        };
+        this.logger.warn(`WebSocket 未就绪，当前状态: ${stateMap[ws.readyState]}`);
+        return false;
+      }
+    } catch (error) {
+      this.logger.error('WebSocket 发送数据失败:', error);
+      return false;
+    }
+  }
+
+  /**
+   * 安全地关闭 WebSocket 连接
+   */
+  private safeCloseWebSocket(): void {
+    if (this.websocket) {
+      if (this.websocket.readyState === WebSocket.OPEN || 
+          this.websocket.readyState === WebSocket.CONNECTING) {
+        this.websocket.close(1000, '正常关闭');
+      }
+      this.websocket = null;
+      this.logger.debug('WebSocket 已安全关闭');
+    }
   }
 
   /**
@@ -590,13 +717,25 @@ export class XfyunTranslator {
 
   /**
    * 设置状态
+   * @param state 新状态
    */
   private setState(state: TranslatorState): void {
+    // 检查状态转换是否合法
+    const validTransitions = XfyunTranslator.STATE_TRANSITIONS[this.state] || [];
+    if (!validTransitions.includes(state)) {
+      this.logger.warn(
+        `⚠️ 非法状态转换: ${this.state} -> ${state}`,
+        `合法转换: [${validTransitions.join(', ')}]`
+      );
+    }
+
     this.state = state;
 
     if (this.handlers.onStateChange) {
       this.handlers.onStateChange(state);
     }
+
+    this.logger.debug(`状态变更: ${this.state}`);
   }
 
   /**

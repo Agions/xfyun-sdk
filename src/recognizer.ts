@@ -55,12 +55,25 @@ export class XfyunASR {
   // WebSocket connecting 超时兜底（部分浏览器不触发 onerror）
   private connectingTimer: number | null = null;
   private static readonly CONNECTING_TIMEOUT_MS = 10000;
-  
+
   // 日志器
   public logger: Logger;
-  
+
   // 销毁状态
   private destroyed: boolean = false;
+
+  /**
+   * 状态转换规则映射
+   * 定义了每个状态可以合法转换到的下一个状态
+   */
+  private static readonly STATE_TRANSITIONS: Record<RecognizerState, RecognizerState[]> = {
+    'idle': ['connecting'],
+    'connecting': ['connected', 'stopped', 'error'],
+    'connected': ['recording', 'stopped', 'error'],
+    'recording': ['stopped', 'error'],
+    'stopped': ['idle', 'connecting'],
+    'error': ['idle', 'connecting']
+  };
 
   /**
    * 创建语音识别实例
@@ -92,6 +105,30 @@ export class XfyunASR {
    * @param handlers 新的事件处理程序
    */
   public setHandlers(handlers: ASREventHandlers): void {
+    if (!handlers || typeof handlers !== 'object') {
+      throw new TypeError('handlers 必须是有效的对象');
+    }
+
+    // 验证各个回调函数的类型
+    if (handlers.onStart && typeof handlers.onStart !== 'function') {
+      throw new TypeError('handlers.onStart 必须是函数');
+    }
+    if (handlers.onStop && typeof handlers.onStop !== 'function') {
+      throw new TypeError('handlers.onStop 必须是函数');
+    }
+    if (handlers.onRecognitionResult && typeof handlers.onRecognitionResult !== 'function') {
+      throw new TypeError('handlers.onRecognitionResult 必须是函数');
+    }
+    if (handlers.onProcess && typeof handlers.onProcess !== 'function') {
+      throw new TypeError('handlers.onProcess 必须是函数');
+    }
+    if (handlers.onError && typeof handlers.onError !== 'function') {
+      throw new TypeError('handlers.onError 必须是函数');
+    }
+    if (handlers.onStateChange && typeof handlers.onStateChange !== 'function') {
+      throw new TypeError('handlers.onStateChange 必须是函数');
+    }
+
     this.handlers = { ...this.handlers, ...handlers };
   }
 
@@ -183,11 +220,11 @@ export class XfyunASR {
       this.sendEndFrame();
 
       // 关闭WebSocket连接
+      if (this.websocketCloseTimer) {
+        window.clearTimeout(this.websocketCloseTimer);
+      }
       this.websocketCloseTimer = window.setTimeout(() => {
-        if (this.websocket) {
-          this.websocket.close();
-          this.websocket = null;
-        }
+        this.safeCloseWebSocket();
         this.websocketCloseTimer = null;
       }, 1000);
 
@@ -231,10 +268,7 @@ export class XfyunASR {
       window.clearTimeout(this.websocketCloseTimer);
       this.websocketCloseTimer = null;
     }
-    if (this.websocket) {
-      this.websocket.close();
-      this.websocket = null;
-    }
+    this.safeCloseWebSocket();
 
     // 停止 recorder
     if (this.recorder && this.recorder.state !== 'inactive') {
@@ -285,6 +319,60 @@ export class XfyunASR {
    */
   public isDestroyed(): boolean {
     return this.destroyed;
+  }
+
+  /**
+   * 确保 WebSocket 已初始化
+   * @throws 如果 WebSocket 未初始化则抛出错误
+   */
+  private ensureWebSocket(): WebSocket {
+    if (!this.websocket) {
+      this.logger.error('WebSocket 未初始化');
+      throw new Error('WebSocket 未初始化，请先调用 start() 方法');
+    }
+    return this.websocket;
+  }
+
+  /**
+   * 安全地发送 WebSocket 消息
+   * @param data 要发送的数据
+   * @returns 发送是否成功
+   */
+  private safeSend(data: string | ArrayBuffer): boolean {
+    try {
+      const ws = this.ensureWebSocket();
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(data);
+        this.logger.debug('WebSocket 发送数据成功');
+        return true;
+      } else {
+        const stateMap: Record<number, string> = {
+          0: 'CONNECTING',
+          1: 'OPEN',
+          2: 'CLOSING',
+          3: 'CLOSED'
+        };
+        this.logger.warn(`WebSocket 未就绪，当前状态: ${stateMap[ws.readyState]}`);
+        return false;
+      }
+    } catch (error) {
+      this.logger.error('WebSocket 发送数据失败:', error);
+      return false;
+    }
+  }
+
+  /**
+   * 安全地关闭 WebSocket 连接
+   */
+  private safeCloseWebSocket(): void {
+    if (this.websocket) {
+      if (this.websocket.readyState === WebSocket.OPEN || 
+          this.websocket.readyState === WebSocket.CONNECTING) {
+        this.websocket.close(1000, '正常关闭');
+      }
+      this.websocket = null;
+      this.logger.debug('WebSocket 已安全关闭');
+    }
   }
 
   /**
@@ -460,96 +548,131 @@ export class XfyunASR {
     try {
       // 生成WebSocket URL
       const url = generateAuthUrl(this.options.apiKey, this.options.apiSecret);
-      
+
       this.logger.info('正在连接WebSocket');
       this.websocket = new WebSocket(url);
-      
-      // 连接建立
-      this.websocket.onopen = () => {
-        this.clearReconnectTimer(); // 取消 connecting 超时
-        this.logger.info('WebSocket连接成功');
-        this.setState('connected');
-        this.sendStartFrame();
-      };
-      
-      // 接收消息
-      this.websocket.onmessage = (event) => {
-        try {
-          this.logger.debug('收到WebSocket消息');
-          const message: XfyunWebsocketResponse = JSON.parse(event.data);
-          
-          if (message.code !== 0) {
-            this.handleError({
-              code: message.code,
-              message: message.message || '识别错误'
-            });
-            // 尝试重连
-            this.handleReconnect();
-            return;
-          }
-          
-          if (message.data && message.data.result) {
-            const text = parseXfyunResult(message.data.result, this.logger);
-            const isEnd = message.data.result.ls;
-            
-            this.logger.debug('解析识别结果:', text, '是否最终结果:', isEnd);
-            
-            if (text) {
-              this.recognitionResult += text;
-              
-              if (this.handlers.onRecognitionResult) {
-                this.handlers.onRecognitionResult(text, isEnd);
-              }
-            }
-            
-            // 如果是最终结果，重置重连计数
-            if (isEnd) {
-              this.reconnectCount = 0;
-            }
-          }
-        } catch (error) {
-          this.logger.error('解析WebSocket消息失败:', error);
-          this.handleError({
-            code: 10005,
-            message: '解析消息失败',
-            data: error
-          });
-        }
-      };
-      
-      // 连接错误
-      this.websocket.onerror = (error) => {
-        this.clearReconnectTimer(); // 取消 connecting 超时
-        this.logger.error('WebSocket连接错误:', error);
-        this.handleError({
-          code: 10006,
-          message: 'WebSocket连接错误',
-          data: error
-        });
-      };
-      
-      // 连接关闭
-      this.websocket.onclose = (event) => {
-        this.logger.info('WebSocket连接关闭:', event.code, event.reason);
-        
-        // 如果不是主动关闭，尝试重连
-        if (this.state !== 'stopped' && this.state !== 'error' && !this.destroyed) {
-          this.handleReconnect();
-        }
-      };
+
+      // 设置所有WebSocket事件处理器
+      this.setupWebSocketHandlers();
+
+      // Connecting 超时兜底：部分浏览器 WebSocket 失败不触发 onerror
+      this.setupConnectingTimeout();
     } catch (error) {
       this.logger.error('初始化WebSocket失败:', error);
       throw new Error(`初始化WebSocket失败: ${error}`);
     }
+  }
 
-    // Connecting 超时兜底：部分浏览器 WebSocket 失败不触发 onerror
+  /**
+   * 设置WebSocket所有事件处理器
+   */
+  private setupWebSocketHandlers(): void {
+    if (!this.websocket) return;
+
+    this.websocket.onopen = this.handleWebSocketOpen.bind(this);
+    this.websocket.onmessage = this.handleWebSocketMessage.bind(this);
+    this.websocket.onerror = this.handleWebSocketError.bind(this);
+    this.websocket.onclose = this.handleWebSocketClose.bind(this);
+  }
+
+  /**
+   * 处理WebSocket连接打开事件
+   */
+  private handleWebSocketOpen(): void {
+    this.clearReconnectTimer(); // 取消 connecting 超时
+    this.logger.info('WebSocket连接成功');
+    this.setState('connected');
+    this.sendStartFrame();
+  }
+
+  /**
+   * 处理WebSocket消息事件
+   */
+  private handleWebSocketMessage(event: MessageEvent): void {
+    try {
+      this.logger.debug('收到WebSocket消息');
+      const message: XfyunWebsocketResponse = JSON.parse(event.data);
+
+      // 处理错误响应
+      if (message.code !== 0) {
+        this.handleError({
+          code: message.code,
+          message: message.message || '识别错误'
+        });
+        this.handleReconnect();
+        return;
+      }
+
+      // 处理识别结果
+      this.processRecognitionResult(message);
+    } catch (error) {
+      this.logger.error('解析WebSocket消息失败:', error);
+      this.handleError({
+        code: 10005,
+        message: '解析消息失败',
+        data: error
+      });
+    }
+  }
+
+  /**
+   * 处理识别结果数据
+   */
+  private processRecognitionResult(message: XfyunWebsocketResponse): void {
+    if (!message.data || !message.data.result) return;
+
+    const text = parseXfyunResult(message.data.result, this.logger);
+    const isEnd = message.data.result.ls;
+
+    this.logger.debug('解析识别结果:', text, '是否最终结果:', isEnd);
+
+    if (text) {
+      this.recognitionResult += text;
+
+      if (this.handlers.onRecognitionResult) {
+        this.handlers.onRecognitionResult(text, isEnd);
+      }
+    }
+
+    // 如果是最终结果，重置重连计数
+    if (isEnd) {
+      this.reconnectCount = 0;
+    }
+  }
+
+  /**
+   * 处理WebSocket错误事件
+   */
+  private handleWebSocketError(error: Event): void {
+    this.clearReconnectTimer(); // 取消 connecting 超时
+    this.logger.error('WebSocket连接错误:', error);
+    this.handleError({
+      code: 10006,
+      message: 'WebSocket连接错误',
+      data: error
+    });
+  }
+
+  /**
+   * 处理WebSocket关闭事件
+   */
+  private handleWebSocketClose(event: CloseEvent): void {
+    this.logger.info('WebSocket连接关闭:', event.code, event.reason);
+
+    // 如果不是主动关闭，尝试重连
+    if (this.state !== 'stopped' && this.state !== 'error' && !this.destroyed) {
+      this.handleReconnect();
+    }
+  }
+
+  /**
+   * 设置Connecting超时检测
+   */
+  private setupConnectingTimeout(): void {
     this.connectingTimer = window.setTimeout(() => {
       if (this.state === 'connecting' && !this.destroyed) {
         this.logger.warn('WebSocket connecting 超时，强制关闭并重连');
-        if (this.websocket) {
-          this.websocket.close();
-          this.websocket = null;
-        }
+        this.safeCloseWebSocket();
         this.handleReconnect();
       }
     }, XfyunASR.CONNECTING_TIMEOUT_MS);
@@ -607,8 +730,8 @@ export class XfyunASR {
    * 发送开始帧
    */
   private sendStartFrame(): void {
-    if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN || this.destroyed) {
-      this.logger.error('WebSocket未连接，无法发送开始帧');
+    if (this.destroyed) {
+      this.logger.warn('实例已销毁，无法发送开始帧');
       return;
     }
 
@@ -627,7 +750,9 @@ export class XfyunASR {
       };
 
       this.logger.debug('发送开始帧');
-      this.websocket.send(JSON.stringify(frame));
+      if (!this.safeSend(JSON.stringify(frame))) {
+        throw new Error('WebSocket 发送失败');
+      }
       this.setState('recording');
     } catch (error) {
       this.logger.error('发送开始帧失败:', error);
@@ -643,7 +768,7 @@ export class XfyunASR {
    * 发送音频数据
    */
   private sendAudioData(): void {
-    if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN || this.state !== 'recording' || this.destroyed) {
+    if (this.state !== 'recording' || this.destroyed) {
       return;
     }
 
@@ -674,11 +799,18 @@ export class XfyunASR {
           }
         };
 
-        this.websocket.send(JSON.stringify(frame));
+        if (!this.safeSend(JSON.stringify(frame))) {
+          // 发送失败，将数据放回队列
+          this.audioDataQueue.unshift(audioData);
+          break;
+        }
+
         this.totalAudioBytes += audioData.length;
         this.logger.debug('发送音频数据帧, 大小:', audioData.length);
       } catch (error) {
         this.logger.error('发送音频数据失败:', error);
+        // 发生错误，将数据放回队列
+        this.audioDataQueue.unshift(audioData);
         this.handleError({
           code: 10007,
           message: '发送音频数据失败',
@@ -692,10 +824,6 @@ export class XfyunASR {
    * 发送结束帧
    */
   private sendEndFrame(): void {
-    if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
-      return;
-    }
-
     const frame: XfyunWebsocketRequest = {
       common: {
         app_id: this.options.appId
@@ -709,7 +837,10 @@ export class XfyunASR {
       }
     };
 
-    this.websocket.send(JSON.stringify(frame));
+    this.logger.debug('发送结束帧');
+    if (!this.safeSend(JSON.stringify(frame))) {
+      this.logger.warn('发送结束帧失败，WebSocket 未就绪');
+    }
   }
 
   /**
@@ -735,13 +866,25 @@ export class XfyunASR {
 
   /**
    * 设置状态
+   * @param state 新状态
    */
   private setState(state: RecognizerState): void {
+    // 检查状态转换是否合法
+    const validTransitions = XfyunASR.STATE_TRANSITIONS[this.state] || [];
+    if (!validTransitions.includes(state)) {
+      this.logger.warn(
+        `⚠️ 非法状态转换: ${this.state} -> ${state}`,
+        `合法转换: [${validTransitions.join(', ')}]`
+      );
+    }
+
     this.state = state;
-    
+
     if (this.handlers.onStateChange) {
       this.handlers.onStateChange(state);
     }
+
+    this.logger.debug(`状态变更: ${this.state}`);
   }
 
   /**

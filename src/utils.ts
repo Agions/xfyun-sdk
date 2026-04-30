@@ -87,6 +87,35 @@ export function detectSupportedMimeType(): string {
 /**
  * 创建 AudioContext（兼容 webkit 前缀）
  * @param sampleRate 可选采样率
+ * @returns AudioContext 实例
+ * 
+ * @warning ⚠️ 重要资源管理提示
+ * 
+ * AudioContext 是重要的浏览器资源，调用方必须在不再使用时显式调用 `close()` 方法：
+ * 
+ * ```typescript
+ * const audioContext = createAudioContext(16000);
+ * 
+ * // ... 使用 audioContext ...
+ * 
+ * // 使用完毕后务必调用
+ * audioContext.close();
+ * 
+ * // 最佳实践：在组件销毁或清理时调用
+ * function cleanup() {
+ *   if (audioContext) {
+ *     audioContext.close();
+ *     audioContext = null;
+ *   }
+ * }
+ * ```
+ * 
+ * 未能正确关闭 AudioContext 可能导致：
+ * - 浏览器音频设备无法释放
+ * - 内存泄漏
+ * - 其他音频应用无法使用音频设备
+ * 
+ * 在 xfyun-sdk 中，所有使用 createAudioContext 的类都在 `destroy()` 方法中正确调用了 `close()`。
  */
 export function createAudioContext(sampleRate?: number): AudioContext {
   const AudioContextClass = (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext || window.AudioContext;
