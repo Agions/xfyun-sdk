@@ -55,9 +55,9 @@ export interface BaseWebSocketClientOptions {
 /**
  * 事件处理器基接口
  */
-export interface BaseEventHandlers {
+export interface BaseEventHandlers<State extends string = string> {
   onError?: (error: XfyunError) => void;
-  onStateChange?: (state: string) => void;
+  onStateChange?: (state: State) => void;
   onStop?: () => void;
 }
 
@@ -70,7 +70,7 @@ export interface BaseEventHandlers {
 export abstract class BaseWebSocketClient<
   State extends string = BaseState,
   Options extends BaseWebSocketClientOptions = BaseWebSocketClientOptions,
-  Handlers extends BaseEventHandlers = BaseEventHandlers
+  Handlers extends BaseEventHandlers<State> = BaseEventHandlers<State>
 > {
   // ========== WebSocket 相关 ==========
   protected websocket: WebSocket | null = null;
