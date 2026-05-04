@@ -129,23 +129,23 @@ describe('translator.ts 语音翻译测试', () => {
     });
   });
 
-  describe('handleSpeechMessage 处理语音消息', () => {
+  describe('parseMessage 处理消息', () => {
     it('应该在数据不是字符串时返回', () => {
       expect(() => {
-        (translator as any).handleSpeechMessage(new ArrayBuffer(100));
+        (translator as any).parseMessage(new ArrayBuffer(100));
       }).not.toThrow();
     });
 
-    it('应该在消息 code 不为 0 时调用 handleError', () => {
+    it('应该在消息 code 不为 0 时调用 handleError (语音翻译)', () => {
       const handleErrorSpy = vi.spyOn(translator as any, 'handleError');
-      const message = JSON.stringify({ code: 10001, message: 'error' });
+      const message = JSON.stringify({ code: 30001, message: 'error' });
 
-      (translator as any).handleSpeechMessage(message);
+      (translator as any).parseMessage(message);
 
-      expect(handleErrorSpy).toHaveBeenCalledWith({ code: 10001, message: 'error' });
+      expect(handleErrorSpy).toHaveBeenCalledWith({ code: 30001, message: 'error' });
     });
 
-    it('应该在成功时调用 onResult 回调', () => {
+    it('应该在成功时调用 onResult 回调 (语音翻译)', () => {
       let capturedResult: any;
       translator.setHandlers({
         onResult: (result) => {
@@ -164,7 +164,7 @@ describe('translator.ts 语音翻译测试', () => {
         }
       });
 
-      (translator as any).handleSpeechMessage(message);
+      (translator as any).parseMessage(message);
 
       expect(capturedResult).toBeDefined();
       expect(capturedResult.sourceText).toBe('你好');
@@ -172,7 +172,7 @@ describe('translator.ts 语音翻译测试', () => {
       expect(capturedResult.isFinal).toBe(true);
     });
 
-    it('应该在非最终结果时调用 onResult 但不调用 onEnd', () => {
+    it('应该在非最终结果时调用 onResult 但不调用 onEnd (语音翻译)', () => {
       let onEndCalled = false;
       translator.setHandlers({
         onResult: () => {},
@@ -190,26 +190,26 @@ describe('translator.ts 语音翻译测试', () => {
         }
       });
 
-      (translator as any).handleSpeechMessage(message);
+      (translator as any).parseMessage(message);
 
       expect(onEndCalled).toBe(false);
     });
-  });
 
-  describe('handleMessage 处理文本消息', () => {
-    it('应该在消息 code 不为 0 时调用 handleError', () => {
-      const handleErrorSpy = vi.spyOn(translator as any, 'handleError');
-      const message = JSON.stringify({ code: 10001, message: 'error' });
-
-      (translator as any).handleMessage(message);
-
-      expect(handleErrorSpy).toHaveBeenCalled();
-    });
-
-    it('应该在成功时调用 onResult 和 onEnd 回调', () => {
+    it('应该在成功时调用 onResult 和 onEnd 回调 (文本翻译)', () => {
       let capturedResult: any;
       let onEndCalled = false;
-      translator.setHandlers({
+      
+      // 创建文本翻译模式的 translator
+      const textTranslator = new XfyunTranslator({
+        appId: 'test-app-id',
+        apiKey: 'test-key',
+        apiSecret: 'test-secret',
+        type: 'text',
+        from: 'cn',
+        to: 'en'
+      });
+      
+      textTranslator.setHandlers({
         onResult: (result) => { capturedResult = result; },
         onEnd: () => { onEndCalled = true; }
       });
@@ -224,11 +224,13 @@ describe('translator.ts 语音翻译测试', () => {
         }
       });
 
-      (translator as any).handleMessage(message);
+      (textTranslator as any).parseMessage(message);
 
       expect(capturedResult).toBeDefined();
       expect(capturedResult.isFinal).toBe(true);
       expect(onEndCalled).toBe(true);
+      
+      textTranslator.destroy();
     });
   });
 

@@ -34,7 +34,7 @@ describe('XfyunTTS 错误处理补充测试', () => {
     vi.unstubAllGlobals();
   });
 
-  describe('handleMessage 解析错误处理', () => {
+  describe('parseMessage 解析错误处理', () => {
     it('JSON 解析失败时应记录错误但不崩溃', () => {
       const mockOnAudioData = vi.fn();
       
@@ -51,7 +51,7 @@ describe('XfyunTTS 错误处理补充测试', () => {
       
       // 模拟 WebSocket 消息 - 无效 JSON
       const invalidJsonMessage = 'not valid json {{{';
-      (tts as any).handleMessage(invalidJsonMessage);
+      (tts as any).parseMessage(invalidJsonMessage);
       
       // 不应抛出异常
     });
@@ -71,7 +71,7 @@ describe('XfyunTTS 错误处理补充测试', () => {
       // 在 idle 状态下收到音频数据
       (tts as any).state = 'idle';
       const audioData = new ArrayBuffer(100);
-      (tts as any).handleMessage(audioData);
+      (tts as any).parseMessage(audioData);
       
       // idle 状态下不应处理音频数据
       expect(mockOnAudioData).not.toHaveBeenCalled();
@@ -91,7 +91,7 @@ describe('XfyunTTS 错误处理补充测试', () => {
       
       (tts as any).state = 'connected';
       const audioData = new ArrayBuffer(100);
-      (tts as any).handleMessage(audioData);
+      (tts as any).parseMessage(audioData);
       
       expect(mockOnAudioData).toHaveBeenCalledWith(audioData);
     });
@@ -110,7 +110,7 @@ describe('XfyunTTS 错误处理补充测试', () => {
       
       (tts as any).state = 'synthesizing';
       const audioData = new ArrayBuffer(100);
-      (tts as any).handleMessage(audioData);
+      (tts as any).parseMessage(audioData);
       
       expect(mockOnAudioData).toHaveBeenCalledWith(audioData);
     });
@@ -133,10 +133,10 @@ describe('XfyunTTS 错误处理补充测试', () => {
       
       // 模拟服务器返回错误
       const errorResponse = JSON.stringify({
-        code: 10701,
+        code: 20002,
         message: 'auth failed'
       });
-      (tts as any).handleMessage(errorResponse);
+      (tts as any).parseMessage(errorResponse);
       
       expect(onError).toHaveBeenCalled();
       // 错误对象可能包含 code 属性

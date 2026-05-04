@@ -7,6 +7,7 @@
 export { XfyunASR } from './recognizer';
 export { XfyunTTS } from './synthesizer';
 export { XfyunTranslator } from './translator';
+export { BaseWebSocketClient } from './base-websocket-client';
 
 // Logger
 export { Logger, LogLevel } from './logger';
