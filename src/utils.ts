@@ -58,6 +58,10 @@ export function generateAuthUrl(
   return `${url}?authorization=${encodeURIComponent(authorization)}&date=${encodeURIComponent(date)}&host=${encodeURIComponent(host)}`;
 }
 
+/**
+ * 检测浏览器是否支持 MediaRecorder API
+ * @returns 支持的 MIME 类型字符串
+ */
 export function detectSupportedMimeType(): string {
   // Check browser environment
   if (typeof MediaRecorder === 'undefined') {

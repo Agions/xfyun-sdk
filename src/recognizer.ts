@@ -33,6 +33,22 @@ const DEFAULT_OPTIONS: Partial<XfyunASROptions> = {
  * 
  * 继承 BaseWebSocketClient，复用 WebSocket 连接管理、状态管理、错误处理等通用逻辑。
  * 专注于语音识别特有的功能：麦克风管理、音频录制、重连机制等。
+ * 
+ * @example
+ * ```typescript
+ * const recognizer = new XfyunASR({
+ *   appId: 'your-app-id',
+ *   apiKey: 'your-api-key',
+ *   apiSecret: 'your-api-secret'
+ * }, {
+ *   onResult: (text) => console.log('识别结果:', text),
+ *   onError: (err) => console.error('错误:', err)
+ * });
+ * 
+ * await recognizer.start();
+ * recognizer.record();
+ * await recognizer.stop();
+ * ```
  */
 export class XfyunASR extends BaseWebSocketClient<RecognizerState, XfyunASROptions, ASREventHandlers> {
   // ========== 音频相关 ==========

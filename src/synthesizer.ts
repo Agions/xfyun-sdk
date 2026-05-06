@@ -53,10 +53,25 @@ const SAMPLE_RATE_MAP: Record<number, string> = {
 };
 
 /**
- * 科大讯飞 TTS 语音合成类
+ * 科大讯飞语音合成类
  * 
  * 继承 BaseWebSocketClient，复用 WebSocket 连接管理、状态管理、错误处理等通用逻辑。
- * 专注于语音合成特有的功能：音频数据收集、文件下载等。
+ * 专注于语音合成特有的功能：文本转语音、音频流处理、缓存管理等。
+ * 
+ * @example
+ * ```typescript
+ * const synthesizer = new XfyunTTS({
+ *   appId: 'your-app-id',
+ *   apiKey: 'your-api-key',
+ *   apiSecret: 'your-api-secret'
+ * }, {
+ *   onAudioData: (buffer) => console.log('音频数据:', buffer),
+ *   onEnd: () => console.log('合成完成')
+ * });
+ * 
+ * await synthesizer.speak('你好，这是语音合成测试');
+ * await synthesizer.stop();
+ * ```
  */
 export class XfyunTTS extends BaseWebSocketClient<SynthesizerState, XfyunTTSOptions, TTSEventHandlers> {
   // ========== 音频相关 ==========

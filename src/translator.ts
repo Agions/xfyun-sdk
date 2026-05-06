@@ -47,10 +47,29 @@ const LANGUAGE_CODE_MAP: Record<SourceLanguage | TargetLanguage, string> = {
 };
 
 /**
- * 科大讯飞翻译器类
+ * 科大讯飞翻译类
  * 
  * 继承 BaseWebSocketClient，复用 WebSocket 连接管理、状态管理、错误处理等通用逻辑。
- * 支持两种模式：文本翻译和语音翻译（边说边译）。
+ * 专注于语音/文本翻译特有的功能：多语言支持、实时翻译结果、翻译模式切换等。
+ * 
+ * @example
+ * ```typescript
+ * const translator = new XfyunTranslator({
+ *   appId: 'your-app-id',
+ *   apiKey: 'your-api-key',
+ *   apiSecret: 'your-api-secret',
+ *   type: 'asr',
+ *   from: 'cn',
+ *   to: 'en'
+ * }, {
+ *   onResult: (result) => console.log('翻译结果:', result),
+ *   onError: (err) => console.error('错误:', err)
+ * });
+ * 
+ * await translator.start();
+ * translator.record();
+ * await translator.stop();
+ * ```
  */
 export class XfyunTranslator extends BaseWebSocketClient<TranslatorState, XfyunTranslatorOptions, TranslatorEventHandlers> {
   // ========== 文本翻译（静态方法，无需实例化）==========

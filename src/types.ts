@@ -7,7 +7,11 @@
 /** ASR 识别状态 */
 export type RecognizerState = 'idle' | 'connecting' | 'connected' | 'recording' | 'stopped' | 'error';
 
-/** ASR 配置选项 */
+/**
+ * ASR 配置选项
+ * 
+ * 包含语音识别所需的所有配置参数。
+ */
 export interface XfyunASROptions {
   appId: string;
   apiKey: string;
@@ -27,7 +31,11 @@ export interface XfyunASROptions {
   logLevel?: 'debug' | 'info' | 'warn' | 'error';
 }
 
-/** ASR 事件处理函数 */
+/**
+ * ASR 事件处理函数接口
+ * 
+ * 定义语音识别过程中可注册的事件回调。
+ */
 export interface ASREventHandlers {
   onStart?: () => void;
   onStop?: () => void;
@@ -37,14 +45,16 @@ export interface ASREventHandlers {
   onStateChange?: (state: RecognizerState) => void;
 }
 
-/** ASR 错误 */
+/**
+ * 讯飞 API 错误对象
+ */
 export interface XfyunError {
   code: number;
   message: string;
   data?: unknown;
 }
 
-/** WebSocket 请求 */
+/** WebSocket 请求结构 */
 export interface XfyunWebsocketRequest {
   common?: {
     app_id: string;
@@ -75,7 +85,7 @@ export interface XfyunWebsocketRequest {
   };
 }
 
-/** WebSocket 响应 */
+/** WebSocket 响应结构 */
 export interface XfyunWebsocketResponse {
   code: number;
   message: string;
@@ -100,10 +110,14 @@ export interface XfyunWebsocketResponse {
 
 // ==================== TTS 类型 ====================
 
-/** TTS 音频格式 */
+/** TTS 音频格式类型 */
 export type TTSAudioFormat = 'mp3' | 'wav' | 'pcm';
 
-/** TTS 音色名称 */
+/**
+ * TTS 音色名称类型
+ * 
+ * 包含讯飞 TTS 支持的所有音色选项。
+ */
 export type TTSVoiceName =
   | 'xiaoyan'       // 青年女声-小燕
   | 'aisjiuxu'       // 青年女声-许久
@@ -143,17 +157,21 @@ export type TTSVoiceName =
   | 'aisxiaoyan'     // 粤语女声-小燕
   ;
 
-/** TTS 合成器状态 */
+/** TTS 合成器状态类型 */
 export type SynthesizerState = 'idle' | 'connecting' | 'connected' | 'synthesizing' | 'stopped' | 'error';
 
-/** TTS 错误 */
+/** TTS 错误对象 */
 export interface TTSError {
   code: number;
   message: string;
   data?: unknown;
 }
 
-/** TTS 事件处理函数 */
+/**
+ * TTS 事件处理函数接口
+ * 
+ * 定义语音合成过程中可注册的事件回调。
+ */
 export interface TTSEventHandlers {
   onStart?: () => void;
   onEnd?: () => void;
@@ -164,7 +182,11 @@ export interface TTSEventHandlers {
   onStateChange?: (state: SynthesizerState) => void;
 }
 
-/** TTS 配置选项 */
+/**
+ * TTS 配置选项
+ * 
+ * 包含语音合成所需的所有配置参数。
+ */
 export interface XfyunTTSOptions {
   appId: string;
   apiKey: string;
@@ -183,30 +205,30 @@ export interface XfyunTTSOptions {
 
 // ==================== 翻译类型 ====================
 
-/** 翻译类型 */
+/** 翻译模式类型 */
 export type TranslatorType = 'asr' | 'text';
 
-/** 源语言 */
+/** 源语言代码 */
 export type SourceLanguage =
   | 'cn' | 'en' | 'ja' | 'ko' | 'fr' | 'es' | 'it' | 'de'
   | 'pt' | 'vi' | 'id' | 'ms' | 'ru' | 'ar' | 'hi' | 'th';
 
-/** 目标语言 */
+/** 目标语言代码 */
 export type TargetLanguage =
   | 'cn' | 'en' | 'ja' | 'ko' | 'fr' | 'es' | 'it' | 'de'
   | 'pt' | 'vi' | 'id' | 'ms' | 'ru' | 'ar' | 'hi' | 'th';
 
-/** 翻译器状态 */
+/** 翻译器状态类型 */
 export type TranslatorState = 'idle' | 'connecting' | 'connected' | 'translating' | 'stopped' | 'error';
 
-/** 翻译错误 */
+/** 翻译错误对象 */
 export interface TranslatorError {
   code: number;
   message: string;
   data?: unknown;
 }
 
-/** 翻译结果 */
+/** 翻译结果对象 */
 export interface TranslationResult {
   sourceLanguage: SourceLanguage;
   targetLanguage: TargetLanguage;
@@ -216,7 +238,11 @@ export interface TranslationResult {
   confidence?: number;
 }
 
-/** 翻译事件处理函数 */
+/**
+ * 翻译事件处理函数接口
+ * 
+ * 定义语音/文本翻译过程中可注册的事件回调。
+ */
 export interface TranslatorEventHandlers {
   onStart?: () => void;
   onEnd?: () => void;
@@ -226,7 +252,11 @@ export interface TranslatorEventHandlers {
   onStateChange?: (state: TranslatorState) => void;
 }
 
-/** 翻译器配置选项 */
+/**
+ * 翻译器配置选项
+ * 
+ * 包含语音/文本翻译所需的所有配置参数。
+ */
 export interface XfyunTranslatorOptions {
   appId: string;
   apiKey: string;
@@ -245,7 +275,8 @@ export interface XfyunTranslatorOptions {
 
 /**
  * 离线 ASR 配置选项
- * @description 离线识别引擎配置，用于无网络情况下的语音识别
+ * 
+ * 用于无网络情况下的语音识别引擎配置。
  */
 export interface OfflineASROptions {
   /** 引擎类型，固定为 'smsys' */
