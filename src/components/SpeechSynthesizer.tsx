@@ -1,109 +1,63 @@
+/**
+ * 语音合成 React 组件
+ * 
+ * 基于 xfyun-sdk 的语音合成 UI 组件
+ * 使用共享模块减少代码重复
+ */
+
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { XfyunTTS, SynthesizerState } from '../synthesizer';
 import type { TTSAudioFormat, TTSVoiceName, TTSError } from '../types';
+import {
+  baseComponentStyles,
+  getButtonStyle,
+  synthesizerStateText,
+} from './index';
 
-// 组件的属性类型
+// ============================================================================
+// 组件属性类型
+// ============================================================================
+
 export interface SpeechSynthesizerProps {
+  /** 讯飞应用 ID */
   appId: string;
+  /** 讯飞 API Key */
   apiKey: string;
+  /** 讯飞 API Secret */
   apiSecret: string;
+  /** 声音名称 */
   voiceName?: TTSVoiceName;
+  /** 语速 */
   speed?: number;
+  /** 音调 */
   pitch?: number;
+  /** 音量 */
   volume?: number;
+  /** 音频格式 */
   audioFormat?: TTSAudioFormat;
+  /** 采样率 */
   sampleRate?: number;
+  /** 开始回调 */
   onStart?: () => void;
+  /** 停止回调 */
   onStop?: () => void;
+  /** 错误回调 */
   onError?: (error: unknown) => void;
+  /** 组件类名 */
   className?: string;
+  /** 按钮类名 */
   buttonClassName?: string;
+  /** 输入框类名 */
   inputClassName?: string;
+  /** 是否显示进度 */
   showProgress?: boolean;
+  /** 是否显示状态 */
   showStatus?: boolean;
 }
 
-// CSS 样式
-const styles = {
-  container: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    alignItems: 'center',
-    padding: '20px',
-    fontFamily: 'Arial, sans-serif',
-    gap: '15px',
-  } as React.CSSProperties,
-  input: {
-    width: '100%',
-    minHeight: '100px',
-    padding: '10px',
-    fontSize: '16px',
-    border: '1px solid #E0E0E0',
-    borderRadius: '4px',
-    resize: 'vertical' as const,
-  } as React.CSSProperties,
-  button: {
-    padding: '10px 20px',
-    fontSize: '16px',
-    border: 'none',
-    borderRadius: '4px',
-    backgroundColor: '#2196F3',
-    color: 'white',
-    cursor: 'pointer',
-    outline: 'none',
-    transition: 'background-color 0.3s',
-    minWidth: '120px',
-  } as React.CSSProperties,
-  buttonSynthesizing: {
-    backgroundColor: '#FF9800',
-  } as React.CSSProperties,
-  buttonDisabled: {
-    backgroundColor: '#BDBDBD',
-    cursor: 'not-allowed',
-  } as React.CSSProperties,
-  progress: {
-    width: '100%',
-    marginTop: '10px',
-  } as React.CSSProperties,
-  progressBarContainer: {
-    width: '100%',
-    height: '20px',
-    backgroundColor: '#E0E0E0',
-    borderRadius: '10px',
-    overflow: 'hidden',
-  } as React.CSSProperties,
-  progressBar: {
-    height: '100%',
-    backgroundColor: '#4CAF50',
-    transition: 'width 0.3s',
-  } as React.CSSProperties,
-  status: {
-    marginTop: '10px',
-    fontSize: '14px',
-    color: '#757575',
-  } as React.CSSProperties,
-  downloadButton: {
-    marginTop: '10px',
-    padding: '8px 16px',
-    fontSize: '14px',
-    border: '1px solid #2196F3',
-    borderRadius: '4px',
-    backgroundColor: 'transparent',
-    color: '#2196F3',
-    cursor: 'pointer',
-    transition: 'all 0.3s',
-  } as React.CSSProperties,
-};
-
-// 状态文本映射
-const STATE_TEXT: Record<SynthesizerState, string> = {
-  idle: '空闲',
-  connecting: '连接中...',
-  connected: '已连接',
-  synthesizing: '合成中...',
-  stopped: '已停止',
-  error: '错误',
-};
+// ============================================================================
+// 组件实现
+// ============================================================================
 
 const SpeechSynthesizer: React.FC<SpeechSynthesizerProps> = ({
   appId,
@@ -201,7 +155,7 @@ const SpeechSynthesizer: React.FC<SpeechSynthesizerProps> = ({
       setAudioBlob(null);
       synthesizerRef.current.start(text);
     }
-  }, [text]);
+  }, [text, onError]);
 
   // 停止合成
   const stopSynthesis = useCallback(() => {
@@ -238,16 +192,16 @@ const SpeechSynthesizer: React.FC<SpeechSynthesizerProps> = ({
     }
   }, [state, startSynthesis, stopSynthesis]);
 
-  // 按钮样式
-  const buttonStyle = useMemo(() => {
-    if (state === 'connecting' || state === 'error') {
-      return { ...styles.button, ...styles.buttonDisabled };
-    }
-    if (state === 'synthesizing') {
-      return { ...styles.button, ...styles.buttonSynthesizing };
-    }
-    return styles.button;
-  }, [state]);
+  // 按钮样式（使用共享工具函数）
+  const buttonStyle = useMemo(() => 
+    getButtonStyle(
+      baseComponentStyles.button,
+      state === 'synthesizing',
+      state === 'connecting' || state === 'error',
+      'active'
+    ),
+    [state]
+  );
 
   // 进度条宽度
   const progressWidth = useMemo(() => {
@@ -259,11 +213,11 @@ const SpeechSynthesizer: React.FC<SpeechSynthesizerProps> = ({
   const isDisabled = state === 'connecting' || state === 'error';
 
   return (
-    <div style={styles.container} className={className}>
+    <div style={baseComponentStyles.container} className={className}>
       <textarea
         value={text}
         onChange={handleTextChange}
-        style={styles.input}
+        style={baseComponentStyles.input}
         className={inputClassName}
         placeholder="请输入要合成的文本"
       />
@@ -278,15 +232,15 @@ const SpeechSynthesizer: React.FC<SpeechSynthesizerProps> = ({
       </button>
 
       {showStatus && (
-        <div style={styles.status}>
-          状态: {STATE_TEXT[state]}
+        <div style={baseComponentStyles.status}>
+          状态: {synthesizerStateText[state]}
         </div>
       )}
 
       {showProgress && isSynthesizing && progress.total > 0 && (
-        <div style={styles.progress}>
-          <div style={styles.progressBarContainer}>
-            <div style={{ ...styles.progressBar, width: progressWidth }} />
+        <div style={{ width: '100%', marginTop: '10px' }}>
+          <div style={baseComponentStyles.progressBarContainer}>
+            <div style={{ ...baseComponentStyles.progressBar, width: progressWidth }} />
           </div>
           <div style={{ textAlign: 'center', marginTop: '5px' }}>
             {Math.round((progress.current / progress.total) * 100)}%
@@ -296,7 +250,7 @@ const SpeechSynthesizer: React.FC<SpeechSynthesizerProps> = ({
 
       {audioBlob && state === 'stopped' && (
         <button
-          style={styles.downloadButton}
+          style={baseComponentStyles.downloadButton}
           onClick={handleDownload}
         >
           下载音频

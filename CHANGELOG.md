@@ -13,6 +13,18 @@
 - **代码重复率大幅降低**：核心类重复代码从 ~200 行降至 0 行（-100%）
 - **代码量显著减少**：核心类总代码从 5,050 行降至 3,240 行（-36%）
 
+### 🎨 React 组件代码重复率优化
+
+- **新增共享组件模块**：提取三个 React 组件（SpeechRecognizer、SpeechSynthesizer、Translator）的重复代码
+- **jscpd 重复率从 0.37% 降至 0%**：完全消除代码克隆
+- **组件代码减少 13%**：从 899 行降至 782 行
+- **新增 5 个共享模块**：
+  - `components/types.ts` - 共享 Props 接口和状态类型
+  - `components/styles.ts` - 共享 CSS 样式和按钮样式工具函数
+  - `components/state-text.ts` - 状态文本映射工厂函数
+  - `components/useXfyunClient.ts` - 通用客户端 Hook
+  - `components/index.ts` - 统一导出
+
 ### ✨ 新增功能
 
 - **`BaseWebSocketClient` 基类**：支持快速扩展讯飞其他 API

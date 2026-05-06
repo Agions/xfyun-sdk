@@ -1,102 +1,71 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { XfyunTranslator, type TranslatorState, type TranslatorType, type SourceLanguage, type TargetLanguage, type TranslationResult, type TranslatorError } from '../translator';
-import type { TTSError } from '../types';
+/**
+ * 翻译 React 组件
+ * 
+ * 基于 xfyun-sdk 的翻译 UI 组件
+ * 使用共享模块减少代码重复
+ */
 
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { 
+  XfyunTranslator, 
+  type TranslatorState, 
+  type TranslatorType, 
+  type SourceLanguage, 
+  type TargetLanguage, 
+  type TranslationResult, 
+  type TranslatorError 
+} from '../translator';
+import type { TTSError } from '../types';
+import {
+  baseComponentStyles,
+  getButtonStyle,
+  translatorStateText,
+} from './index';
+
+// ============================================================================
 // 组件属性类型
+// ============================================================================
+
 export interface TranslatorProps {
+  /** 讯飞应用 ID */
   appId: string;
+  /** 讯飞 API Key */
   apiKey: string;
+  /** 讯飞 API Secret */
   apiSecret: string;
+  /** 翻译类型 */
   type?: TranslatorType;
+  /** 源语言 */
   from?: SourceLanguage;
+  /** 目标语言 */
   to?: TargetLanguage;
+  /** 领域 */
   domain?: string;
+  /** VAD 结束阈值 */
   vadEos?: number;
+  /** 组件类名 */
   className?: string;
+  /** 按钮类名 */
   buttonClassName?: string;
+  /** 输入框类名 */
   inputClassName?: string;
+  /** 结果容器类名 */
   resultClassName?: string;
+  /** 是否显示原文 */
   showSourceText?: boolean;
+  /** 是否显示译文 */
   showTargetText?: boolean;
+  /** 开始回调 */
   onStart?: () => void;
+  /** 停止回调 */
   onStop?: () => void;
+  /** 错误回调 */
   onError?: (error: TTSError) => void;
 }
 
-// CSS 样式
-const styles = {
-  container: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '15px',
-    padding: '20px',
-    fontFamily: 'Arial, sans-serif',
-    maxWidth: '600px',
-    margin: '0 auto',
-  } as React.CSSProperties,
-  textArea: {
-    width: '100%',
-    minHeight: '80px',
-    padding: '10px',
-    fontSize: '14px',
-    border: '1px solid #E0E0E0',
-    borderRadius: '4px',
-    resize: 'vertical' as const,
-    fontFamily: 'monospace',
-  } as React.CSSProperties,
-  button: {
-    padding: '10px 20px',
-    fontSize: '16px',
-    border: 'none',
-    borderRadius: '4px',
-    backgroundColor: '#2196F3',
-    color: 'white',
-    cursor: 'pointer',
-    outline: 'none',
-    transition: 'background-color 0.3s',
-    minWidth: '120px',
-  } as React.CSSProperties,
-  buttonTranslating: {
-    backgroundColor: '#FF9800',
-  } as React.CSSProperties,
-  buttonDisabled: {
-    backgroundColor: '#BDBDBD',
-    cursor: 'not-allowed',
-  } as React.CSSProperties,
-  resultContainer: {
-    border: '1px solid #E0E0E0',
-    borderRadius: '4px',
-    padding: '15px',
-    backgroundColor: '#FAFAFA',
-  } as React.CSSProperties,
-  sourceText: {
-    fontSize: '14px',
-    lineHeight: '1.5',
-    marginBottom: '10px',
-    color: '#333',
-  } as React.CSSProperties,
-  targetText: {
-    fontSize: '14px',
-    lineHeight: '1.5',
-    color: '#2196F3',
-    fontWeight: 'bold' as const,
-  } as React.CSSProperties,
-  status: {
-    fontSize: '12px',
-    color: '#757575',
-    marginTop: '5px',
-  } as React.CSSProperties,
-};
-
-// 状态文本映射
-const STATE_TEXT: Record<TranslatorState, string> = {
-  idle: '空闲',
-  connecting: '连接中...',
-  connected: '已连接',
-  translating: '翻译中...',
-  stopped: '已停止',
-  error: '错误',
-};
+// ============================================================================
+// 组件实现
+// ============================================================================
 
 const Translator: React.FC<TranslatorProps> = ({
   appId,
@@ -210,7 +179,7 @@ const Translator: React.FC<TranslatorProps> = ({
       setTargetText('');
       await translatorRef.current.start();
     }
-  }, [type]);
+  }, [type, onError]);
 
   // 停止翻译
   const stopTranslation = useCallback(() => {
@@ -241,25 +210,25 @@ const Translator: React.FC<TranslatorProps> = ({
     }
   }, [isTranslating, type, sourceText, startTranslation, stopTranslation]);
 
-  // 按钮样式
-  const buttonStyle = useMemo(() => {
-    if (state === 'connecting' || state === 'error') {
-      return { ...styles.button, ...styles.buttonDisabled };
-    }
-    if (isTranslating) {
-      return { ...styles.button, ...styles.buttonTranslating };
-    }
-    return styles.button;
-  }, [state, isTranslating]);
+  // 按钮样式（使用共享工具函数）
+  const buttonStyle = useMemo(() => 
+    getButtonStyle(
+      baseComponentStyles.button,
+      isTranslating,
+      state === 'connecting' || state === 'error',
+      'active'
+    ),
+    [state, isTranslating]
+  );
 
   const isDisabled = state === 'connecting' || state === 'error';
 
   return (
-    <div style={styles.container} className={className}>
+    <div style={baseComponentStyles.container} className={className}>
       <textarea
         value={sourceText}
         onChange={handleTextChange}
-        style={styles.textArea}
+        style={baseComponentStyles.textArea}
         className={inputClassName}
         placeholder={type === 'text' ? '请输入要翻译的文本' : '点击开始语音翻译'}
         disabled={isTranslating}
@@ -275,16 +244,16 @@ const Translator: React.FC<TranslatorProps> = ({
       </button>
 
       {(showSourceText || showTargetText) && targetText && (
-        <div style={styles.resultContainer} className={resultClassName}>
+        <div style={baseComponentStyles.resultContainer} className={resultClassName}>
           {showSourceText && sourceText && (
-            <div style={styles.sourceText}>
+            <div style={{ fontSize: '14px', lineHeight: '1.5', marginBottom: '10px', color: '#333' }}>
               <strong>原文：</strong>
               <br />
               {sourceText}
             </div>
           )}
           {showTargetText && (
-            <div style={styles.targetText}>
+            <div style={{ fontSize: '14px', lineHeight: '1.5', color: '#2196F3', fontWeight: 'bold' as const }}>
               <strong>译文：</strong>
               <br />
               {targetText}
@@ -293,13 +262,13 @@ const Translator: React.FC<TranslatorProps> = ({
         </div>
       )}
 
-      <div style={styles.status}>
-        状态: {STATE_TEXT[state]}
+      <div style={{ fontSize: '12px', color: '#757575', marginTop: '5px' }}>
+        状态: {translatorStateText[state]}
       </div>
 
       <button
         style={{
-          ...styles.button,
+          ...baseComponentStyles.button,
           backgroundColor: 'transparent',
           color: '#757575',
         }}
@@ -312,4 +281,3 @@ const Translator: React.FC<TranslatorProps> = ({
 };
 
 export default Translator;
-
