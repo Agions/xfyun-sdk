@@ -9,10 +9,9 @@ import {
   RecognizerState,
   XfyunWebsocketRequest,
   XfyunWebsocketResponse,
-  XfyunError
 } from './types';
 import { generateAuthUrl, arrayBufferToBase64, parseXfyunResult, calculateVolume, detectSupportedMimeType, createAudioContext } from './utils';
-import { BaseWebSocketClient, BaseEventHandlers } from './base-websocket-client';
+import { BaseWebSocketClient } from './base-websocket-client';
 
 // 默认配置
 const DEFAULT_OPTIONS: Partial<XfyunASROptions> = {
@@ -265,10 +264,11 @@ export class XfyunASR extends BaseWebSocketClient<RecognizerState, XfyunASROptio
     this.clearWebSocketCloseTimer();
     this.safeCloseWebSocket();
 
-    // 停止 recorder
+    // 停止 recorder 并清空引用
     if (this.recorder && this.recorder.state !== 'inactive') {
       this.recorder.stop();
     }
+    this.recorder = null;
     this.stopVolumeDetection();
     this.releaseMicrophone();
 

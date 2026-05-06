@@ -3,7 +3,6 @@
  * @description 支持语音翻译（边说边译）和文本翻译
  */
 
-import { Logger } from './logger';
 import { toBase64, arrayBufferToBase64, generateAuthUrl, detectSupportedMimeType, createAudioContext } from './utils';
 import { BaseWebSocketClient } from './base-websocket-client';
 import type {
@@ -250,6 +249,7 @@ export class XfyunTranslator extends BaseWebSocketClient<TranslatorState, XfyunT
   private cleanupRecordingResources(): void {
     if (this.recorder) {
       this.stopRecorder();
+      this.recorder = null;
     }
     if (this.microphoneStream) {
       this.releaseMicrophone();

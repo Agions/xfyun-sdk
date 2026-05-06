@@ -3,7 +3,6 @@
  * @description 基于 WebSocket 的流式语音合成，支持多种音色、语速调节、多种音频格式
  */
 
-import { Logger } from './logger';
 import { toBase64, generateAuthUrl } from './utils';
 import { BaseWebSocketClient } from './base-websocket-client';
 import type {

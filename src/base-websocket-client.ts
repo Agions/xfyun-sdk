@@ -24,7 +24,7 @@
  * ```
  */
 
-import { Logger, LogLevel } from './logger';
+import { Logger } from './logger';
 import type { XfyunError } from './types';
 
 /**
