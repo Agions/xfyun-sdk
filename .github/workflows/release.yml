@@ -8,6 +8,7 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     
     steps:
       - name: Checkout code
@@ -18,11 +19,12 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '18'
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm ci || npm install
 
       - name: Run tests
         run: npm run test:run
@@ -39,16 +41,18 @@ jobs:
         run: |
           prev_tag=$(git describe --tags --abbrev=0 ${{ steps.tag.outputs.version }}^ 2>/dev/null || echo "v1.0.0")
           changes=$(git log $prev_tag..${{ steps.tag.outputs.version }} --pretty=format:"- %s (%h)" --no-merges)
-          echo "notes<<EOF" >> $GITHUB_OUTPUT
-          echo "## Changes in ${{ steps.tag.outputs.version }}" >> $GITHUB_OUTPUT
-          echo "" >> $GITHUB_OUTPUT
-          echo "$changes" >> $GITHUB_OUTPUT
-          echo "" >> $GITHUB_OUTPUT
-          echo "## Statistics" >> $GITHUB_OUTPUT
-          echo "- Files changed: $(git diff $prev_tag..${{ steps.tag.outputs.version }} --numstat | wc -l)" >> $GITHUB_OUTPUT
-          echo "- Lines added: $(git diff $prev_tag..${{ steps.tag.outputs.version }} --numstat | awk '{sum+=$1} END {print sum}')" >> $GITHUB_OUTPUT
-          echo "- Lines removed: $(git diff $prev_tag..${{ steps.tag.outputs.version }} --numstat | awk '{sum+=$2} END {print sum}')" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          {
+            echo "notes<<EOF"
+            echo "## Changes in ${{ steps.tag.outputs.version }}"
+            echo ""
+            echo "$changes"
+            echo ""
+            echo "## Statistics"
+            echo "- Files changed: $(git diff $prev_tag..${{ steps.tag.outputs.version }} --numstat | wc -l)"
+            echo "- Lines added: $(git diff $prev_tag..${{ steps.tag.outputs.version }} --numstat | awk '{sum+=$1} END {print sum}')"
+            echo "- Lines removed: $(git diff $prev_tag..${{ steps.tag.outputs.version }} --numstat | awk '{sum+=$2} END {print sum}')"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -58,4 +62,3 @@ jobs:
           body: ${{ steps.notes.outputs.notes }}
           draft: false
           prerelease: false
-          generate_release_notes: true
