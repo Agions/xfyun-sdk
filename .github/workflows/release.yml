@@ -4,78 +4,58 @@ on:
   push:
     tags:
       - 'v*'
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Tag to release'
-        required: false
-        type: string
-
-permissions:
-  contents: write
 
 jobs:
   release:
-    name: Build & Create GitHub Release
     runs-on: ubuntu-latest
-
+    
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
-          version: 9
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'pnpm'
-          cache-dependency-path: pnpm-lock.yaml
+          cache: 'npm'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build
-        run: pnpm run build
+        run: npm ci
 
       - name: Run tests
-        run: pnpm run test:run
+        run: npm run test:run
 
-      - name: Create GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          # Determine tag from ref or input
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TAG="${{ github.event.inputs.tag }}"
-          else
-            TAG="${GITHUB_REF#refs/tags/}"
-          fi
-          
-          echo "Creating release for tag: $TAG"
-          
-          # Create release
-          gh release create "$TAG" \
-            --title "$TAG" \
-            --notes "Release $TAG" \
-            --repo "${{ github.repository }}"
-          
-          # Upload artifacts (files only, skip directories)
-          for asset in dist/*; do
-            if [ -f "$asset" ]; then
-              gh release upload "$TAG" "$asset" --repo "${{ github.repository }}"
-            fi
-          done
+      - name: Build
+        run: npm run build
 
-      - name: Verify Release
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Get tag version
+        id: tag
+        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Generate release notes
+        id: notes
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TAG="${{ github.event.inputs.tag }}"
-          else
-            TAG="${GITHUB_REF#refs/tags/}"
-          fi
-          gh release view "$TAG" --repo "${{ github.repository }}" --json tagName,url --jq '{tag: .tag_name, url: .url}'
+          prev_tag=$(git describe --tags --abbrev=0 ${{ steps.tag.outputs.version }}^ 2>/dev/null || echo "v1.0.0")
+          changes=$(git log $prev_tag..${{ steps.tag.outputs.version }} --pretty=format:"- %s (%h)" --no-merges)
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          echo "## Changes in ${{ steps.tag.outputs.version }}" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "$changes" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "## Statistics" >> $GITHUB_OUTPUT
+          echo "- Files changed: $(git diff $prev_tag..${{ steps.tag.outputs.version }} --numstat | wc -l)" >> $GITHUB_OUTPUT
+          echo "- Lines added: $(git diff $prev_tag..${{ steps.tag.outputs.version }} --numstat | awk '{sum+=$1} END {print sum}')" >> $GITHUB_OUTPUT
+          echo "- Lines removed: $(git diff $prev_tag..${{ steps.tag.outputs.version }} --numstat | awk '{sum+=$2} END {print sum}')" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.version }}
+          name: Release ${{ steps.tag.outputs.version }}
+          body: ${{ steps.notes.outputs.notes }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
