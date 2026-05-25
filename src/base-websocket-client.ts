@@ -6,7 +6,7 @@
  * - WebSocket 连接管理（创建、发送、关闭）
  * - 定时器管理（连接超时、关闭延迟）
  * - 状态管理（状态转换验证）
- * - 错误处理模式
+ * - 错误处理模式（统一错误分类和恢复策略）
  * 
  * @example
  * ```typescript
@@ -26,6 +26,7 @@
 
 import { Logger } from './logger';
 import type { XfyunError } from './types';
+import { classifyError, formatErrorLog, ErrorSeverity, ErrorRecoverability } from './error';
 
 /**
  * 基础状态类型
@@ -360,15 +361,18 @@ export abstract class BaseWebSocketClient<
   /**
    * 设置状态（带转换验证）
    * @param newState 新状态
+   * @param suppressWarning 是否抑制警告（用于测试场景）
    */
-  protected setState(newState: State): void {
+  protected setState(newState: State, suppressWarning: boolean = false): void {
     // 检查状态转换是否合法
     const validTransitions = this.STATE_TRANSITIONS[this.state] || [];
     if (!validTransitions.includes(newState)) {
-      this.logger.warn(
-        `⚠️ 非法状态转换: ${this.state} -> ${newState}`,
-        `合法转换: [${validTransitions.join(', ')}]`
-      );
+      if (!suppressWarning) {
+        this.logger.warn(
+          `⚠️ 非法状态转换: ${this.state} -> ${newState}`,
+          `合法转换: [${validTransitions.join(', ')}]`
+        );
+      }
     }
 
     const oldState = this.state;
@@ -381,29 +385,61 @@ export abstract class BaseWebSocketClient<
     this.logger.debug(`状态变更: ${oldState} -> ${newState}`);
   }
 
+  /**
+   * 强制设置状态（跳过验证）
+   * 仅在确定状态转换合法但状态机未定义时使用（如测试场景）
+   * @internal
+   */
+  protected forceSetState(newState: State): void {
+    this.setState(newState, true);
+  }
+
   // ========== 错误处理 ==========
 
   /**
    * 处理错误
    * @param error 错误信息
    */
-  protected handleError(error: XfyunError): void {
+  protected handleError(error: XfyunError | unknown): void {
+    // 使用统一错误分类系统
+    const enhancedError = classifyError(error);
+    
     // 清除所有定时器
     this.clearWebSocketCloseTimer();
     this.clearConnectingTimer();
 
-    this.setState('error' as State);
+    // 根据错误严重程度决定是否进入 error 状态
+    if (enhancedError.severity >= ErrorSeverity.HIGH) {
+      this.setState('error' as State);
+    }
 
+    // 记录结构化错误日志
+    this.logger.error(formatErrorLog(enhancedError));
+    
+    if (enhancedError.severity >= ErrorSeverity.MEDIUM) {
+      this.logger.error('详细错误信息:', {
+        code: enhancedError.code,
+        category: enhancedError.category,
+        recoverable: enhancedError.recoverable,
+        recoveryHint: enhancedError.recoveryHint,
+        originalError: enhancedError.originalError,
+      });
+    }
+
+    // 触发错误回调（传递增强型错误）
     if (this.handlers.onError) {
-      this.handlers.onError(error);
+      this.handlers.onError(enhancedError as XfyunError);
     }
 
     // 通知停止（让调用方知道操作已结束）
     if (this.handlers.onStop) {
       this.handlers.onStop();
     }
-
-    this.logger.error(`${this.getModulePrefix()} 错误:`, error);
+    
+    // 如果是可恢复错误，记录恢复建议
+    if (enhancedError.recoverable === ErrorRecoverability.RECOVERABLE) {
+      this.logger.info(`💡 恢复建议: ${enhancedError.recoveryHint}`);
+    }
   }
 
   // ========== 生命周期 ==========

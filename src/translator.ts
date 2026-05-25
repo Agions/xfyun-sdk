@@ -73,10 +73,46 @@ const LANGUAGE_CODE_MAP: Record<SourceLanguage | TargetLanguage, string> = {
  */
 export class XfyunTranslator extends BaseWebSocketClient<TranslatorState, XfyunTranslatorOptions, TranslatorEventHandlers> {
   // ========== 文本翻译（静态方法，无需实例化）==========
-  static translateText: (
+  /**
+   * 静态文本翻译方法
+   * @param text 要翻译的文本
+   * @param options 翻译配置选项
+   * @returns 翻译结果 Promise
+   */
+  static async translateText(
     text: string,
     options: XfyunTranslatorOptions
-  ) => Promise<TranslationResult>;
+  ): Promise<TranslationResult> {
+    return new Promise((resolve, reject) => {
+      // 验证必要参数
+      if (!text || text.trim().length === 0) {
+        reject({ code: 30001, message: '翻译文本不能为空' });
+        return;
+      }
+      if (!options.appId || !options.apiKey || !options.apiSecret) {
+        reject({ code: 30000, message: '缺少必要参数: appId, apiKey, apiSecret' });
+        return;
+      }
+
+      // 创建临时翻译器实例进行文本翻译
+      const translator = new XfyunTranslator(
+        { ...options, type: 'text' },
+        {
+          onResult: (result) => {
+            resolve(result);
+          },
+          onError: (error) => {
+            reject(error);
+          },
+        }
+      );
+
+      // 启动文本翻译
+      translator.start(text).catch((error) => {
+        reject({ code: 30003, message: '翻译请求失败', data: error });
+      });
+    });
+  }
 
   // ========== 音频相关（语音翻译模式）==========
   private microphoneStream: MediaStream | null = null;
@@ -101,6 +137,17 @@ export class XfyunTranslator extends BaseWebSocketClient<TranslatorState, XfyunT
    */
   constructor(options: XfyunTranslatorOptions, handlers: TranslatorEventHandlers = {}) {
     super({ ...DEFAULT_OPTIONS, ...options } as XfyunTranslatorOptions, handlers);
+    
+    // 如果设置为自动开始，使用 setTimeout 延迟启动
+    if (this.options.autoStart && this.options.type === 'asr') {
+      setTimeout(() => {
+        if (!this.destroyed) {
+          this.start().catch((err) => {
+            this.logger.error('autoStart 启动失败:', err);
+          });
+        }
+      }, 0);
+    }
   }
 
   // ========== 实现 BaseWebSocketClient 抽象方法 ==========

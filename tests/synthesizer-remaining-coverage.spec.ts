@@ -36,7 +36,11 @@ describe('synthesizer.ts 剩余覆盖率测试', () => {
       const testError = { code: 10001, message: 'Test error' };
       (synthesizer as any).handleError(testError);
 
-      expect(capturedError).toEqual(testError);
+      // 现在返回的是增强型错误，验证关键属性
+      expect(capturedError.code).toBe(10001);
+      expect(capturedError.message).toBe('Test error');
+      expect(capturedError.category).toBeDefined();
+      expect(capturedError.severity).toBeDefined();
       expect(synthesizer.getState()).toBe('error');
     });
 

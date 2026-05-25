@@ -2,7 +2,7 @@
   "name": "xfyun-sdk",
   "version": "1.5.1",
   "type": "module",
-  "description": "\u79d1\u5927\u8baf\u98de\u8bed\u97f3\u8bc6\u522b SDK\uff0c\u652f\u6301\u6d4f\u89c8\u5668\u4e2d\u5b9e\u65f6\u8bed\u97f3\u542c\u5199\u529f\u80fd",
+  "description": "科大讯飞语音识别 SDK，支持浏览器中实时语音听写功能",
   "main": "dist/index.js",
   "module": "dist/index.esm.js",
   "browser": "dist/index.umd.js",
@@ -17,7 +17,10 @@
     "lint:fix": "eslint src --ext .ts,.tsx --fix",
     "type-check": "tsc --noEmit",
     "prepare": "npm run build",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
   },
   "files": [
     "dist"
@@ -31,11 +34,11 @@
     "asr",
     "recognition",
     "voice",
-    "\u79d1\u5927\u8baf\u98de",
-    "\u8bed\u97f3\u8bc6\u522b",
-    "\u8bed\u97f3\u542c\u5199",
-    "\u5b9e\u65f6\u8bed\u97f3",
-    "\u4e2d\u6587\u8bed\u97f3\u8bc6\u522b",
+    "科大讯飞",
+    "语音识别",
+    "语音听写",
+    "实时语音",
+    "中文语音识别",
     "react",
     "typescript"
   ],
@@ -67,7 +70,7 @@
   "devDependencies": {
     "@rollup/plugin-commonjs": "^28.0.0",
     "@rollup/plugin-node-resolve": "^16.0.0",
-    "@rollup/plugin-terser": "^0.4.4",
+    "@rollup/plugin-terser": "^1.0.0",
     "@rollup/plugin-typescript": "^12.0.0",
     "@testing-library/jest-dom": "^6.6.0",
     "@testing-library/react": "^16.0.0",
@@ -76,16 +79,19 @@
     "@types/react": "^18.3.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
-    "@vitest/coverage-v8": "^2.0.0",
-    "@vitest/ui": "^2.0.0",
+    "@vitest/coverage-v8": "^4.1.7",
+    "@vitest/ui": "^4.1.7",
     "eslint": "^9.0.0",
     "jsdom": "^25.0.0",
+    "markdown-it-mathjax3": "^4.3.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "rimraf": "^6.0.0",
     "rollup": "^4.24.0",
     "tslib": "^2.7.0",
     "typescript": "^5.9.3",
-    "vitest": "^2.0.0"
+    "vitepress": "^1.6.4",
+    "vitest": "^4.1.7",
+    "vue": "^3.5.34"
   }
 }

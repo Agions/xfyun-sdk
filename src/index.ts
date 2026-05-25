@@ -68,5 +68,17 @@ export {
   parseXfyunResult,
 } from './utils';
 
-// SDK 版本
-export const SDK_VERSION = '1.2.3';
+// 错误处理
+export {
+  classifyError,
+  handleXfyunError,
+  formatErrorLog,
+  ErrorSeverity,
+  ErrorRecoverability,
+  ErrorCategory,
+  EnhancedXfyunError,
+  ErrorHandlingResult,
+} from './error';
+
+// SDK 版本（与 package.json 保持一致）
+export const SDK_VERSION = '1.5.1';

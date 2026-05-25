@@ -35,7 +35,12 @@ describe('translator.ts 剩余覆盖率覆盖测试', () => {
 
       (translator as any).handleError(testError);
 
-      expect(capturedError).toEqual(testError);
+      // 现在返回的是增强型错误，包含额外字段
+      expect(capturedError.code).toBe(30001);
+      expect(capturedError.message).toBe('Specific error');
+      expect(capturedError.category).toBeDefined();
+      expect(capturedError.severity).toBeDefined();
+      expect(capturedError.recoverable).toBeDefined();
       expect((translator as any).state).toBe('error');
     });
 

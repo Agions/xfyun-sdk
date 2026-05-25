@@ -1,6 +1,10 @@
 /**
  * 科大讯飞语音识别模块
  * @description 基于 WebSocket 的实时语音识别，支持麦克风录音、文件识别、重连机制
+ * 
+ * @resource-management
+ * 所有音频资源（AudioContext、MediaStream、MediaRecorder、AnalyserNode）
+ * 必须在使用完毕后通过 destroy() 或 stop() 正确释放，避免内存泄漏。
  */
 
 import {
@@ -88,10 +92,15 @@ export class XfyunASR extends BaseWebSocketClient<RecognizerState, XfyunASROptio
   constructor(options: XfyunASROptions, handlers: ASREventHandlers = {}) {
     super({ ...DEFAULT_OPTIONS, ...options } as XfyunASROptions, handlers);
     
-    // 如果设置为自动开始，则初始化后立即开始
+    // 如果设置为自动开始，使用 setTimeout 延迟启动，确保父类构造函数完全执行
     if (this.options.autoStart) {
-      // 注意：这里不能直接调用 start()，因为父类构造函数还没完全执行
-      // 需要在外部调用或延迟执行
+      setTimeout(() => {
+        if (!this.destroyed) {
+          this.start().catch((err) => {
+            this.logger.error('autoStart 启动失败:', err);
+          });
+        }
+      }, 0);
     }
   }
 
@@ -183,10 +192,11 @@ export class XfyunASR extends BaseWebSocketClient<RecognizerState, XfyunASROptio
       // 重置状态
       this.setState('connecting');
       this.recognitionResult = '';
-      this.audioDataQueue = [];
-      this.totalAudioBytes = 0;
+      
+      // 清理之前的资源（防止重复启动导致资源泄漏）
+      this.cleanupAudioResources();
+      
       this.reconnectCount = 0;
-      this.cachedBusinessParams = null;
 
       // 请求麦克风权限
       await this.initMicrophone();
@@ -199,15 +209,8 @@ export class XfyunASR extends BaseWebSocketClient<RecognizerState, XfyunASROptio
         this.handlers.onStart();
       }
     } catch (error) {
-      // initWebSocket 失败，释放 initMicrophone 已申请的全部资源
-      this.releaseMicrophone();
-      if (this.audioContext) {
-        this.audioContext.close();
-        this.audioContext = null;
-      }
-      this.analyser = null;
-      this.audioSource = null;
-      this.recorder = null;
+      // 启动失败，清理所有已分配的资源
+      this.cleanupAudioResources();
       this.handleError({
         code: 10003,
         message: '启动语音识别失败',
@@ -244,20 +247,16 @@ export class XfyunASR extends BaseWebSocketClient<RecognizerState, XfyunASROptio
       // 延迟关闭 WebSocket
       this.scheduleWebSocketClose(1000);
 
-      // 关闭音频流
-      this.releaseMicrophone();
-
-      // 关闭音频上下文
-      if (this.audioContext) {
-        this.audioContext.close();
-        this.audioContext = null;
-      }
+      // 清理音频资源（使用统一的清理方法）
+      this.cleanupAudioResources();
 
       // 触发停止事件
       if (this.handlers.onStop) {
         this.handlers.onStop();
       }
     } catch (error) {
+      // 即使清理失败也要确保资源被释放
+      this.cleanupAudioResources();
       this.handleError({
         code: 10004,
         message: '停止语音识别失败',
@@ -268,6 +267,7 @@ export class XfyunASR extends BaseWebSocketClient<RecognizerState, XfyunASROptio
 
   /**
    * 销毁实例，释放所有资源
+   * 此方法应被调用以确保所有资源正确释放，避免内存泄漏
    */
   public destroy(): void {
     this.destroyed = true;
@@ -280,18 +280,8 @@ export class XfyunASR extends BaseWebSocketClient<RecognizerState, XfyunASROptio
     this.clearWebSocketCloseTimer();
     this.safeCloseWebSocket();
 
-    // 停止 recorder 并清空引用
-    if (this.recorder && this.recorder.state !== 'inactive') {
-      this.recorder.stop();
-    }
-    this.recorder = null;
-    this.stopVolumeDetection();
-    this.releaseMicrophone();
-
-    if (this.audioContext) {
-      this.audioContext.close();
-      this.audioContext = null;
-    }
+    // 使用统一的资源清理方法
+    this.cleanupAudioResources();
 
     this.setState('stopped');
     this.logger.info('XfyunASR 实例已销毁');
@@ -322,11 +312,16 @@ export class XfyunASR extends BaseWebSocketClient<RecognizerState, XfyunASROptio
 
   /**
    * 初始化麦克风
+   * 注意：如果此方法抛出异常，已分配的部分资源会被自动清理
    */
   private async initMicrophone(): Promise<void> {
+    // 临时变量用于部分初始化失败时的清理
+    let tempStream: MediaStream | null = null;
+    let tempAudioContext: AudioContext | null = null;
+    
     try {
       // 获取麦克风权限
-      this.microphoneStream = await navigator.mediaDevices.getUserMedia({
+      tempStream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
@@ -339,15 +334,15 @@ export class XfyunASR extends BaseWebSocketClient<RecognizerState, XfyunASROptio
       this.logger.info('成功获取麦克风权限');
 
       // 创建音频上下文
-      this.audioContext = createAudioContext();
+      tempAudioContext = createAudioContext();
 
       // 创建分析器节点
-      this.analyser = this.audioContext.createAnalyser();
-      this.analyser.fftSize = 2048;
+      const analyser = tempAudioContext.createAnalyser();
+      analyser.fftSize = 2048;
 
       // 连接音频源
-      this.audioSource = this.audioContext.createMediaStreamSource(this.microphoneStream);
-      this.audioSource.connect(this.analyser);
+      const audioSource = tempAudioContext.createMediaStreamSource(tempStream);
+      audioSource.connect(analyser);
 
       // 检测支持的音频格式
       const mimeType = detectSupportedMimeType();
@@ -359,13 +354,13 @@ export class XfyunASR extends BaseWebSocketClient<RecognizerState, XfyunASROptio
       this.logger.info('使用音频格式:', mimeType);
 
       // 创建音频录制器
-      this.recorder = new MediaRecorder(this.microphoneStream, {
+      const recorder = new MediaRecorder(tempStream, {
         mimeType,
         audioBitsPerSecond: 16000
       });
       
       // 处理录音数据
-      this.recorder.ondataavailable = (event) => {
+      recorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           const reader = new FileReader();
           reader.onload = () => {
@@ -387,7 +382,7 @@ export class XfyunASR extends BaseWebSocketClient<RecognizerState, XfyunASROptio
       };
       
       // 录音出错处理
-      this.recorder.onerror = (error) => {
+      recorder.onerror = (error) => {
         this.logger.error('录音出错:', error);
         this.handleError({
           code: 10009,
@@ -396,13 +391,31 @@ export class XfyunASR extends BaseWebSocketClient<RecognizerState, XfyunASROptio
         });
       };
       
+      // 所有资源初始化成功，赋值给实例变量
+      this.microphoneStream = tempStream;
+      this.audioContext = tempAudioContext;
+      this.analyser = analyser;
+      this.audioSource = audioSource;
+      this.recorder = recorder;
+      
+      // 清空临时变量，避免被 finally 块清理
+      tempStream = null;
+      tempAudioContext = null;
+      
       this.logger.info('麦克风和录音器初始化完成');
     } catch (error) {
-      // 清理部分初始化的资源
-      this.releaseMicrophone();
-      if (this.audioContext) {
-        this.audioContext.close();
-        this.audioContext = null;
+      // 清理部分初始化的资源（使用临时变量）
+      if (tempStream) {
+        try {
+          tempStream.getTracks().forEach(track => track.stop());
+        } catch {}
+      }
+      if (tempAudioContext) {
+        try {
+          if (tempAudioContext.state !== 'closed') {
+            void tempAudioContext.close();
+          }
+        } catch {}
       }
       this.logger.error('初始化麦克风失败:', error);
       throw error;
@@ -425,8 +438,59 @@ export class XfyunASR extends BaseWebSocketClient<RecognizerState, XfyunASROptio
     this.logger.info('开始录音');
   }
 
+  // ========== 资源管理（核心改进）==========
+  
   /**
-   * 释放麦克风资源
+   * 清理所有音频相关资源
+   * 使用 try-catch 确保每个资源都能被清理，即使某个资源清理失败
+   */
+  private cleanupAudioResources(): void {
+    // 1. 停止音量检测定时器
+    this.stopVolumeDetection();
+    
+    // 2. 停止并清理 MediaRecorder
+    try {
+      if (this.recorder) {
+        if (this.recorder.state === 'recording' || this.recorder.state === 'paused') {
+          this.recorder.stop();
+        }
+        // 清空 dataavailable 监听器，防止后续回调
+        this.recorder.ondataavailable = null;
+        this.recorder.onerror = null;
+        this.recorder = null;
+      }
+    } catch (e) {
+      this.logger.warn('清理 MediaRecorder 时出错:', e);
+    }
+    
+    // 3. 释放麦克风流（先断开节点，再停止轨道）
+    this.releaseMicrophone();
+    
+    // 4. 关闭 AudioContext
+    try {
+      if (this.audioContext) {
+        // 如果 context 已关闭或已暂停，不需要再 close
+        if (this.audioContext.state !== 'closed') {
+          void this.audioContext.close();
+        }
+        this.audioContext = null;
+      }
+    } catch (e) {
+      this.logger.warn('清理 AudioContext 时出错:', e);
+    }
+    
+    // 5. 清空音频数据队列
+    this.audioDataQueue = [];
+    this.totalAudioBytes = 0;
+    
+    // 6. 重置业务参数缓存
+    this.cachedBusinessParams = null;
+    
+    this.logger.debug('音频资源已清理完毕');
+  }
+
+  /**
+   * 释放麦克风资源（独立方法，可被多次安全调用）
    */
   private releaseMicrophone(): void {
     // 先断开音频节点连接，再停止轨道
@@ -439,7 +503,11 @@ export class XfyunASR extends BaseWebSocketClient<RecognizerState, XfyunASROptio
       this.analyser = null;
     }
     if (this.microphoneStream) {
-      this.microphoneStream.getTracks().forEach(track => track.stop());
+      try {
+        this.microphoneStream.getTracks().forEach(track => {
+          try { track.stop(); } catch {}
+        });
+      } catch {}
       this.microphoneStream = null;
     }
   }
@@ -607,6 +675,7 @@ export class XfyunASR extends BaseWebSocketClient<RecognizerState, XfyunASROptio
           message: '发送音频数据失败',
           data: error
         });
+        break; // 修复：异常后跳出循环，避免无限重试
       }
     }
   }

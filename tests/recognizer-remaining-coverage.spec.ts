@@ -99,18 +99,20 @@ describe('recognizer.ts 剩余覆盖率覆盖测试', () => {
     });
 
     it('应该正确调用onError处理器并传递错误', () => {
-      let capturedError: Error | undefined;
+      let capturedError: any;
       const testError = new Error('Specific test error');
 
       recognizer.setHandlers({
-        onError: (error: Error) => {
+        onError: (error: any) => {
           capturedError = error;
         }
       });
 
       (recognizer as any).handleError(testError);
 
-      expect(capturedError).toBe(testError);
+      // 现在传递的是增强型错误
+      expect(capturedError).toBeDefined();
+      expect(capturedError.category).toBeDefined();
       expect(recognizer.getState()).toBe('error');
     });
 
