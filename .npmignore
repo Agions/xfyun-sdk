@@ -1,10 +1,12 @@
 # 依赖文件
 node_modules/
-npm-debug.log
-yarn-debug.log
-yarn-error.log
-.lock
-*.lock
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+package-lock.json
+pnpm-lock.yaml
+
 # 构建输出
 dist/
 build/
@@ -13,6 +15,7 @@ out/
 
 # 测试
 coverage/
+.vitest/
 
 # IDE 设置
 .idea/
@@ -33,4 +36,12 @@ Thumbs.db
 .env.production.local
 
 # VitePress 缓存
-docs/.vitepress/cache/ 
+docs/.vitepress/cache/
+
+# 示例项目依赖
+examples/*/node_modules/
+
+# 临时文件
+*.tmp
+*.temp
+*.bak

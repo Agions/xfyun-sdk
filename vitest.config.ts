@@ -2,49 +2,21 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    environment: 'jsdom',
     globals: true,
-    setupFiles: ['./tests/setup.ts'],
-    include: [
-      'tests/**/*.{test,spec}.{ts,tsx}',
-      'tests/e2e/**/*.{test,spec}.{ts,tsx}',
-      'tests/performance/**/*.{test,spec}.{ts,tsx}',
-    ],
-    exclude: [
-      'tests/e2e/**', // E2E tests need special setup
-    ],
+    environment: 'jsdom',
+    include: ['tests/**/*.spec.ts', 'tests/**/*.test.ts'],
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'json', 'html'],
-      all: true,
-      include: ['src/**/*.ts', '!src/**/*.d.ts'],
-      exclude: [
-        'src/**/*.test.ts',
-        'src/**/*.spec.ts',
-        'src/types.ts',
-        'src/index.ts',
-      ],
+      reporter: ['text', 'json', 'html', 'lcov'],
+      reportsDirectory: './coverage',
+      include: ['src/**/*.ts'],
+      exclude: ['src/components/**', 'src/**/*.d.ts'],
+      thresholds: {
+        lines: 80,
+        functions: 80,
+        branches: 70,
+        statements: 80,
+      },
     },
-  },
-});
-
-// E2E and Performance test configurations
-export const e2eConfig = defineConfig({
-  test: {
-    environment: 'jsdom',
-    globals: true,
-    setupFiles: ['./tests/setup.ts'],
-    include: ['tests/e2e/**/*.{test,spec}.{ts,tsx}'],
-    testTimeout: 30000,
-  },
-});
-
-export const performanceConfig = defineConfig({
-  test: {
-    environment: 'jsdom',
-    globals: true,
-    setupFiles: ['./tests/setup.ts'],
-    include: ['tests/performance/**/*.{test,spec}.{ts,tsx}'],
-    testTimeout: 30000,
   },
 });

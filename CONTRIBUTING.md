@@ -1,77 +1,107 @@
-# 贡献指南
+# Contributing to xfyun-sdk
 
-感谢您考虑为 XfyunSDK 做出贡献！您的贡献将帮助改进这个项目，使其更好地为开发者社区服务。
+首先感谢你考虑为 xfyun-sdk 做出贡献！🎉
 
-## 行为准则
+## 开发环境设置
 
-请帮助我们保持 XfyunSDK 的开放和包容。请尊重所有参与者，无论其经验水平、性别、性别认同和表达、性取向、残疾、个人外表、体型、种族、民族、年龄、宗教或国籍。
+### 前置要求
 
-## 如何贡献
+- Node.js >= 18
+- npm >= 9
 
-### 报告 Bug
-
-如果您发现了 bug，请通过 GitHub issues 报告，并包含以下信息：
-
-1. 问题的简短描述
-2. 复现步骤
-3. 预期行为
-4. 实际行为
-5. 您的环境信息（浏览器、操作系统等）
-6. 如果可能，提供屏幕截图或错误消息
-
-### 提交功能请求
-
-我们欢迎新功能的建议！请通过 GitHub issues 提交功能请求，并详细描述：
-
-1. 您期望的功能
-2. 为什么这个功能对项目有价值
-3. 您是否愿意实现这个功能
-
-### 提交代码
-
-1. Fork 仓库
-2. 创建您的特性分支 (`git checkout -b feature/amazing-feature`)
-3. 提交您的更改 (`git commit -m 'Add some amazing feature'`)
-4. 推送到分支 (`git push origin feature/amazing-feature`)
-5. 创建一个 Pull Request
-
-### 代码风格
-
-- 使用 TypeScript 编写新代码
-- 遵循项目的代码风格和规范
-- 编写清晰的注释
-- 保持代码简洁明了
-
-### 开发流程
+### 安装依赖
 
 ```bash
-# 克隆您 fork 的仓库
-git clone https://github.com/agions/xfyun-sdk.git
-cd xfyun-sdk
-
-# 安装依赖
 npm install
+```
+
+### 开发命令
+
+```bash
+# 启动开发服务器
+npm run docs:dev
+
+# 运行测试
+npm run test
+
+# 运行测试并查看覆盖率
+npm run test:coverage
+
+# 运行 ESLint
+npm run lint
 
 # 构建项目
 npm run build
-
-# 运行示例
-cd examples
-npm install
-npm start
 ```
+
+## 提交代码
+
+### 分支约定
+
+| 分支类型 | 命名格式 | 用途 |
+|----------|----------|------|
+| 新功能 | `feature/xxx` | 新增功能 |
+| Bug 修复 | `fix/xxx` | 修复 Bug |
+| 文档 | `docs/xxx` | 文档更新 |
+| 重构 | `refactor/xxx` | 代码重构 |
+| 测试 | `test/xxx` | 测试相关 |
+| 工具 | `chore/xxx` | 工具/配置 |
+
+### Commit 约定
+
+使用 [Conventional Commits](https://www.conventionalcommits.org/)：
+
+```
+type(scope): description
+
+[optional body]
+
+[optional footer]
+```
+
+**Type:**
+- `feat`: 新功能
+- `fix`: Bug 修复
+- `docs`: 文档更新
+- `style`: 代码格式（不影响功能）
+- `refactor`: 重构
+- `perf`: 性能优化
+- `test`: 测试相关
+- `chore`: 构建/工具相关
+
+**示例:**
+```bash
+git commit -m "feat(recognizer): 添加 autoStart 功能"
+git commit -m "fix(translator): 修复 translateText 参数校验"
+git commit -m "docs(api): 更新 ASR API 文档"
+```
+
+## 测试要求
+
+- 所有测试必须通过：`npm run test:run`
+- 新增功能必须包含测试
+- 测试覆盖率不能降低
+
+## 代码规范
+
+- 使用 TypeScript
+- 遵循 ESLint 规则
+- 添加 JSDoc 注释
+- 保持函数单一职责
 
 ## Pull Request 流程
 
-1. 确保所有测试都通过
-2. 更新文档以反映任何更改
-3. 确保您的代码符合项目的编码规范
-4. PR 的标题应该简明扼要地描述您的更改
+1. Fork 仓库
+2. 创建分支
+3. 提交代码
+4. 推送分支
+5. 创建 Pull Request
 
-## 资源
+## 问题反馈
 
-- [项目文档](README.md)
-- [Issue 跟踪器](https://github.com/agions/xfyun-sdk/issues)
-- [科大讯飞开放平台](https://www.xfyun.cn/)
+- 使用 GitHub Issues 反馈 Bug
+- 使用 GitHub Discussions 讨论功能建议
 
-再次感谢您的贡献！ 
+## 许可证
+
+贡献的代码将遵循 MIT 许可证。

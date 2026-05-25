@@ -2,6 +2,35 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { XfyunTranslator } from '../src/translator';
 import type { XfyunTranslatorOptions, TranslatorState } from '../src/types';
 
+// Mock MediaRecorder
+class MockMediaRecorder {
+  state = 'inactive';
+  stream: any;
+  mimeType?: string;
+  ondataavailable: ((event: { data: Blob }) => void) | null = null;
+  onstop: (() => void) | null = null;
+
+  constructor(stream: any, options?: { mimeType?: string }) {
+    this.stream = stream;
+    this.mimeType = options?.mimeType;
+  }
+
+  start(timeSlice?: number) {
+    this.state = 'recording';
+    // Simulate data available after 500ms
+    setTimeout(() => {
+      if (this.ondataavailable) {
+        this.ondataavailable({ data: new Blob([new ArrayBuffer(100)]) });
+      }
+    }, 10);
+  }
+
+  stop() {
+    this.state = 'inactive';
+    if (this.onstop) this.onstop();
+  }
+}
+
 // Mock WebSocket
 class MockWebSocket {
   static CONNECTING = 0;
@@ -9,7 +38,8 @@ class MockWebSocket {
   static CLOSING = 2;
   static CLOSED = 3;
 
-  readyState = MockWebSocket.OPEN;
+  readyState = MockWebSocket.CONNECTING;
+  url = '';
   onopen: (() => void) | null = null;
   onmessage: ((event: { data: string }) => void) | null = null;
   onerror: ((event: unknown) => void) | null = null;
@@ -17,6 +47,15 @@ class MockWebSocket {
 
   send = vi.fn();
   close = vi.fn();
+
+  constructor(url: string) {
+    this.url = url;
+    // Simulate connection after a tick
+    setTimeout(() => {
+      this.readyState = MockWebSocket.OPEN;
+      if (this.onopen) this.onopen();
+    }, 0);
+  }
 }
 
 // Mock navigator.mediaDevices
@@ -26,6 +65,38 @@ Object.defineProperty(navigator, 'mediaDevices', {
     getUserMedia: vi.fn().mockResolvedValue({
       getTracks: () => [{ stop: vi.fn() }],
     }),
+  },
+});
+
+// Mock MediaRecorder globally
+Object.defineProperty(global, 'MediaRecorder', {
+  writable: true,
+  value: MockMediaRecorder,
+});
+
+// Mock AudioContext on window
+const mockAudioContext = {
+  state: 'running',
+  close: vi.fn().mockResolvedValue(undefined),
+  createMediaStreamSource: vi.fn().mockReturnValue({ connect: vi.fn() }),
+  createScriptProcessor: vi.fn().mockReturnValue({ onaudioprocess: null, connect: vi.fn() }),
+};
+
+Object.defineProperty(window, 'AudioContext', {
+  writable: true,
+  value: class AudioContext {
+    constructor() {
+      return mockAudioContext;
+    }
+  },
+});
+
+Object.defineProperty(window, 'webkitAudioContext', {
+  writable: true,
+  value: class WebkitAudioContext {
+    constructor() {
+      return mockAudioContext;
+    }
   },
 });
 
@@ -147,6 +218,8 @@ describe('XfyunTranslator', () => {
 
       await translator.start();
 
+      // State should be 'connecting' after start is called
+      // The WebSocket connection happens asynchronously
       expect(translator.getState()).toBe('connecting');
     });
   });

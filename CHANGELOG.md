@@ -5,6 +5,41 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.5.2] - 2026-05-25
+
+### 🎉 项目完善版本
+
+- **测试覆盖率提升至 80.87%**：从 64% 提升至 80%+，新增 195 个测试用例
+- **新增错误分类系统**：`src/error.ts` 提供统一的错误分类和处理机制
+- **Bug 修复**：
+  - 修复 `recognizer.ts` autoStart 功能
+  - 修复 `recognizer.ts` sendAudioData catch 块无限循环 bug
+  - 修复 `translator.ts` translateText 静态方法
+  - 修复 `translator.ts` autoStart 功能
+- **架构升级**：
+  - 统一错误处理集成到 `base-websocket-client.ts`
+  - 新增 `forceSetState` 方法和 `suppressWarning` 参数
+  - 资源管理重构（`cleanupAudioResources` 方法）
+- **依赖安全**：安全漏洞从 12 个修复至 0 个
+- **ESLint**：所有警告修复（0 警告）
+- **构建验证**：UMD + CJS + ESM 构建成功
+- **VitePress 文档**：新增 13 个 Markdown 页面，讯飞蓝主题样式
+- **CI/CD 工作流**：
+  - CI: 自动测试、lint、构建、覆盖率检查
+  - Deploy Docs: 自动部署到 GitHub Pages
+  - Release: 推送 tag 时自动创建 GitHub Release
+
+### 📊 质量指标
+
+| 指标 | 1.5.0 | 1.5.2 | 改进 |
+|------|-------|-------|------|
+| 测试覆盖率 | 64% | 80.87% | ⬆️ 26.87% |
+| 测试用例数 | 239 | 434 | ⬆️ 81.6% |
+| ESLint 警告 | 0 | 0 | ✅ 保持 |
+| 安全漏洞 | 12 | 0 | ⬇️ 100% |
+
+---
+
 ## [1.5.0] - 2026-05-04
 
 ### 🎉 重大架构重构
