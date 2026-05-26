@@ -7,6 +7,7 @@ export default defineConfig({
   lang: 'zh-CN',
   lastUpdated: true,
   cleanUrls: true,
+  base: '/xfyun-sdk/',
 
   // 主题配置
   themeConfig: {
