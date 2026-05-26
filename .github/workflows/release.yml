@@ -9,7 +9,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -23,8 +23,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: |
-          npm ci || npm install
+        run: npm ci
 
       - name: Run tests
         run: npm run test:run
@@ -41,18 +40,16 @@ jobs:
         run: |
           prev_tag=$(git describe --tags --abbrev=0 ${{ steps.tag.outputs.version }}^ 2>/dev/null || echo "v1.0.0")
           changes=$(git log $prev_tag..${{ steps.tag.outputs.version }} --pretty=format:"- %s (%h)" --no-merges)
-          {
-            echo "notes<<EOF"
-            echo "## Changes in ${{ steps.tag.outputs.version }}"
-            echo ""
-            echo "$changes"
-            echo ""
-            echo "## Statistics"
-            echo "- Files changed: $(git diff $prev_tag..${{ steps.tag.outputs.version }} --numstat | wc -l)"
-            echo "- Lines added: $(git diff $prev_tag..${{ steps.tag.outputs.version }} --numstat | awk '{sum+=$1} END {print sum}')"
-            echo "- Lines removed: $(git diff $prev_tag..${{ steps.tag.outputs.version }} --numstat | awk '{sum+=$2} END {print sum}')"
-            echo "EOF"
-          } >> $GITHUB_OUTPUT
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          echo "## Changes in ${{ steps.tag.outputs.version }}" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "$changes" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "## Statistics" >> $GITHUB_OUTPUT
+          echo "- Files changed: $(git diff $prev_tag..${{ steps.tag.outputs.version }} --numstat | wc -l)" >> $GITHUB_OUTPUT
+          echo "- Lines added: $(git diff $prev_tag..${{ steps.tag.outputs.version }} --numstat | awk '{sum+=$1} END {print sum}')" >> $GITHUB_OUTPUT
+          echo "- Lines removed: $(git diff $prev_tag..${{ steps.tag.outputs.version }} --numstat | awk '{sum+=$2} END {print sum}')" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Create Release
         uses: softprops/action-gh-release@v2

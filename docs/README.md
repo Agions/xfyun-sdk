@@ -4,13 +4,12 @@
 
 ## API 文档
 
-- [ASR 语音识别](api/ASR.md)
-- [TTS 语音合成](api/TTS.md)
-- [Translator 翻译](api/Translator.md)
-- [Utils 工具函数](api/Utils.md)
-- [Types 类型定义](api/Types.md)
-- [Logger 日志工具](api/Logger.md)
-- [SpeechRecognizer React 组件](api/SpeechRecognizer.md)
+- [ASR 语音识别](api/asr.md)
+- [TTS 语音合成](api/tts.md)
+- [Translator 翻译](api/translator.md)
+- [Utils 工具函数](api/utils.md)
+- [Types 类型定义](api/types.md)
+- [Logger 日志工具](api/logger.md)
 
 ## 指南
 
@@ -22,4 +21,3 @@
 - 语音识别 (ASR) - 实时语音转文字
 - 语音合成 (TTS) - 文本转语音
 - 翻译 - 语音翻译和文本翻译
-- 声纹识别 - 说话人验证和识别
