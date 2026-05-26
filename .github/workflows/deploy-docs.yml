@@ -35,9 +35,6 @@ jobs:
       - name: Build docs
         run: npm run docs:build
 
-      - name: Add .nojekyll file
-        run: touch docs/.vitepress/dist/.nojekyll
-
       - name: Deploy docs to main branch
         run: |
           git config user.name "github-actions[bot]"
@@ -45,6 +42,7 @@ jobs:
           git checkout main
           rm -rf docs-dist
           cp -r docs/.vitepress/dist docs-dist
+          touch docs-dist/.nojekyll
           git add -f docs-dist
           git commit -m "docs: deploy to GitHub Pages [skip ci]" || echo "No changes to commit"
           git push origin main
