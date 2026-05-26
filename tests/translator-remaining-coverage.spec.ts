@@ -41,16 +41,19 @@ describe('translator.ts 剩余覆盖率覆盖测试', () => {
       expect(capturedError.category).toBeDefined();
       expect(capturedError.severity).toBeDefined();
       expect(capturedError.recoverable).toBeDefined();
+      // 错误处理后状态变为 error
       expect((translator as any).state).toBe('error');
     });
 
-    it('应该在错误处理后阻止新的翻译请求', async () => {
-      // 先触发错误状态
-      (translator as any).state = 'error';
+    it('应该在正在进行时忽略新的翻译请求', async () => {
+      // 设置为正在翻译状态
+      (translator as any).state = 'translating';
 
-      // 尝试在错误状态下发起新请求 - 应该被start方法阻止
+      // 尝试在翻译中发起新请求 - 应该被忽略
+      const warnSpy = vi.spyOn((translator as any).logger, 'warn');
       await translator.start('test');
-      expect((translator as any).state).toBe('error');
+      
+      expect(warnSpy).toHaveBeenCalledWith('翻译正在进行中，忽略此次请求');
     });
   });
 

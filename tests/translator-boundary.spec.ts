@@ -101,17 +101,18 @@ describe('XfyunTranslator 异步边界测试', () => {
       expect(errorThrown).toBe(true);
     });
 
-    it('应该在错误状态下阻止新的翻译请求', async () => {
-      // 先触发错误状态
-      (translator as any).state = 'error';
+    it('应该在正在进行时忽略新的翻译请求', async () => {
+      // 设置为正在翻译状态
+      (translator as any).state = 'translating';
 
-      // 验证在错误状态下无法开始新的翻译
-      expect((translator as any).state).toBe('error');
+      // 验证在翻译状态下无法开始新的翻译
+      expect((translator as any).state).toBe('translating');
 
-      // 在错误状态下调用 start 应该被忽略（因为状态是 'error'）
-      // 注意：由于 jsdom 中 WebSocket 会触发错误，我们只验证状态不变
+      // 在翻译状态下调用 start 应该被忽略
+      const warnSpy = vi.spyOn((translator as any).logger, 'warn');
       await translator.start('测试文本');
-      expect((translator as any).state).toBe('error');
+      expect(warnSpy).toHaveBeenCalledWith('翻译正在进行中，忽略此次请求');
+      expect((translator as any).state).toBe('translating');
     });
   });
 
