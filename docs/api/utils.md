@@ -5,9 +5,9 @@ next: /api/logger
 
 # Utils 工具函数
 
-::tip{icon=🔧 title=常用工具函数}
+::: tip
 简化 SDK 使用的辅助工具
-::
+:::
 
 ## 日志级别控制
 

@@ -4,9 +4,9 @@ outline: deep
 
 # 示例代码
 
-::tip{icon=💡 title=实战示例}
+::: tip
 从简单到复杂，手把手教你使用 xfyun-sdk
-::
+:::
 
 ## ASR 语音识别示例
 

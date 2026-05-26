@@ -5,9 +5,9 @@ next: /api/types
 
 # Translator 翻译
 
-::tip{icon=🌐 title=语音翻译和文本翻译}
+::: tip
 支持 15+ 种语言互译，边说边译
-::
+:::
 
 ## 快速使用
 
@@ -330,7 +330,7 @@ translator.start();
 
 ## 常见问题
 
-::details
+::: details
 <details>
 <summary>翻译结果为空？</summary>
 
@@ -339,9 +339,9 @@ translator.start();
 3. 增加超时时间配置
 
 </details>
-::
+:::
 
-::details
+::: details
 <details>
 <summary>语音翻译延迟高？</summary>
 
@@ -350,7 +350,7 @@ translator.start();
 3. 使用合适的 `vadEos` 设置
 
 </details>
-::
+:::
 
 ## 下一步
 

@@ -5,9 +5,9 @@ next: /api/utils
 
 # 类型定义
 
-::tip{icon=🛡️ title=完整的 TypeScript 类型}
+::: tip
 所有公共 API 都有完整的类型定义
-::
+:::
 
 ## ASR 类型
 

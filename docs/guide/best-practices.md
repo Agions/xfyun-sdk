@@ -5,17 +5,17 @@ next: /guide/troubleshooting
 
 # 最佳实践
 
-::tip{icon=✅ title=生产环境建议}
+::: tip
 让你的应用更稳定、更高效、更安全
-::
+:::
 
 ## 资源管理
 
 ### 始终调用 destroy()
 
-::danger{title=⚠️ 重要}
+::: danger
 **务必在组件卸载时调用 `destroy()`**，避免资源泄漏！
-::
+:::
 
 ```typescript
 // React

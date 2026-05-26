@@ -4,9 +4,9 @@ outline: deep
 
 # TTS 示例
 
-::tip{icon=🔊 title=语音合成实战}
+::: tip
 从基础到高级，手把手教你使用 TTS
-::
+:::
 
 ## 基础示例
 

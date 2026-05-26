@@ -5,14 +5,13 @@ next: /guide/authentication
 
 # 快速开始
 
-::tip{icon=🚀 title=3 分钟上手}
+::: tip
 从安装到第一个语音识别应用，只需 3 分钟！
-::
+:::
 
 ## 安装
 
-::code-group
-
+::: code-group
 ```bash [npm]
 npm install xfyun-sdk
 ```
@@ -25,7 +24,7 @@ yarn add xfyun-sdk
 pnpm add xfyun-sdk
 ```
 
-::
+:::
 
 ## 配置讯飞账号
 
@@ -35,9 +34,9 @@ pnpm add xfyun-sdk
 2. 创建应用，获取 **APPID**、**APIKey**、**APISecret**
 3. 将凭证安全存储在环境变量中
 
-::warning{title=安全提示}
+::: warning
 ⚠️ **不要将 API 凭证硬编码在代码中！** 建议使用环境变量或密钥管理服务。
-::
+:::
 
 ### 环境变量配置
 

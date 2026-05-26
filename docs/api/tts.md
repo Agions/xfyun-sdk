@@ -5,9 +5,9 @@ next: /api/translator
 
 # TTS 语音合成
 
-::tip{icon=🔊 title=文本转语音}
+::: tip
 支持 30+ 种发音人，多种音频格式
-::
+:::
 
 ## 快速使用
 
@@ -41,7 +41,7 @@ createSynthesizer(options: XfyunTTSOptions): Synthesizer
 | `pitch` | `number` | `50` | ❌ | 音调 0-100 |
 | `volume` | `number` | `50` | ❌ | 音量 0-100 |
 
-::details
+::: details
 <details>
 <summary>查看所有参数</summary>
 
@@ -55,7 +55,7 @@ createSynthesizer(options: XfyunTTSOptions): Synthesizer
 | `logLevel` | `'debug' \| 'info' \| 'warn' \| 'error'` | `'info'` | 日志级别 |
 
 </details>
-::
+:::
 
 ## 发音人列表
 
@@ -326,7 +326,7 @@ synthesizer.speak('流式播放测试');
 
 ## 常见问题
 
-::details
+::: details
 <details>
 <summary>没有声音输出？</summary>
 
@@ -335,9 +335,9 @@ synthesizer.speak('流式播放测试');
 3. 检查系统音量设置
 
 </details>
-::
+:::
 
-::details
+::: details
 <details>
 <summary>如何改变语速和音调？</summary>
 
@@ -349,7 +349,7 @@ const synthesizer = createSynthesizer({
 ```
 
 </details>
-::
+:::
 
 ## 下一步
 

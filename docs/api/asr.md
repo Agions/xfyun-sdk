@@ -5,9 +5,9 @@ next: /api/asr
 
 # ASR 语音识别
 
-::tip{icon=🎤 title=实时语音转文字}
+::: tip
 支持中文、英文，多种方言和领域模型
-::
+:::
 
 ## 快速使用
 
@@ -46,7 +46,7 @@ createRecognizer(options: XfyunASROptions): Recognizer
 | `vadEos` | `number` | `3000` | ❌ | 静音超时 (ms) |
 | `autoStart` | `boolean` | `false` | ❌ | 自动开始 |
 
-::details
+::: details
 <details>
 <summary>查看所有参数</summary>
 
@@ -62,7 +62,7 @@ createRecognizer(options: XfyunASROptions): Recognizer
 | `logLevel` | `'debug' \| 'info' \| 'warn' \| 'error'` | `'info'` | 日志级别 |
 
 </details>
-::
+:::
 
 ## 方法
 
@@ -74,9 +74,9 @@ createRecognizer(options: XfyunASROptions): Recognizer
 recognizer.start(): Promise<void>
 ```
 
-::warning
+::: warning
 需要先获取麦克风权限，建议在用户交互后调用。
-::
+:::
 
 **使用示例**：
 
@@ -109,9 +109,9 @@ recognizer.stop(): void
 recognizer.destroy(): void
 ```
 
-::tip
+::: tip
 **务必在组件卸载时调用**，避免资源泄漏。
-::
+:::
 
 ```typescript
 // React
@@ -333,7 +333,7 @@ const recognizer = createRecognizer({
 
 ## 常见问题
 
-::details
+::: details
 <details>
 <summary>识别结果不准确怎么办？</summary>
 
@@ -343,9 +343,9 @@ const recognizer = createRecognizer({
 4. 选择合适的领域模型（如 `medical`、`assistant`）
 
 </details>
-::
+:::
 
-::details
+::: details
 <details>
 <summary>如何优化识别速度？</summary>
 
@@ -354,7 +354,7 @@ const recognizer = createRecognizer({
 3. 使用 WebSocket 持久连接
 
 </details>
-::
+:::
 
 ## 下一步
 

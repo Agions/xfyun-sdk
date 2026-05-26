@@ -4,9 +4,9 @@ outline: deep
 
 # 故障排除
 
-::tip{icon=❓ title=常见问题解答}
+::: tip
 遇到问题？看看这里有没有解决方案
-::
+:::
 
 ## WebSocket 连接失败
 
