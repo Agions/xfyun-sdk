@@ -35,9 +35,13 @@ jobs:
       - name: Build docs
         run: npm run docs:build
 
-      - name: Deploy to gh-pages branch
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./docs/.vitepress/dist
-          force_orphan: true
+      - name: Deploy docs to main branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout main
+          rm -rf docs-dist
+          cp -r docs/.vitepress/dist docs-dist
+          git add -f docs-dist
+          git commit -m "docs: deploy to GitHub Pages [skip ci]" || echo "No changes to commit"
+          git push origin main
